@@ -1,0 +1,16 @@
+scope,alt_metric,spearman_rho,winner_under_vaja,winner_under_alt,same_winner
+vanilla,jet/accuracy_1_of_1,0.983,g2vc1w2g,g2vc1w2g,True
+vanilla,jet/accuracy_2_of_2,0.95,g2vc1w2g,g2vc1w2g,True
+vanilla,jet/accuracy_3_of_3,-0.067,g2vc1w2g,ce5ymtjx,False
+vanilla,event purity (all events),0.883,g2vc1w2g,g2vc1w2g,True
+vanilla,particle detection accuracy,-0.25,g2vc1w2g,ickk4hl3,False
+blocks,jet/accuracy_1_of_1,0.994,gs8pex8v,gs8pex8v,True
+blocks,jet/accuracy_2_of_2,0.741,gs8pex8v,sqjfkudn,False
+blocks,jet/accuracy_3_of_3,0.411,gs8pex8v,hvep36x3,False
+blocks,event purity (all events),0.989,gs8pex8v,gs8pex8v,True
+blocks,particle detection accuracy,0.42,gs8pex8v,e19osz6f,False
+pooled,jet/accuracy_1_of_1,0.994,gs8pex8v,gs8pex8v,True
+pooled,jet/accuracy_2_of_2,0.727,gs8pex8v,sqjfkudn,False
+pooled,jet/accuracy_3_of_3,0.338,gs8pex8v,hvep36x3,False
+pooled,event purity (all events),0.986,gs8pex8v,gs8pex8v,True
+pooled,particle detection accuracy,0.252,gs8pex8v,e19osz6f,False
