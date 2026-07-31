@@ -1,0 +1,12 @@
+# WS7 reference arm: OG SPANet-paper full_hadronic_ttbar config ported to v11 + fixed data
+# (dp-spatop-train-og-ref, W&B gusmb6vq, best ckpt epoch 11 val_avg_jet_acc 0.200,
+#  eval tt_hadronic_dp_ogref.h5 on tpm70_wpm30_FB350_fixed_test).
+# Convention: slot-order-free per-topology (fraction of true tops reconstructed by either
+# slot, t1/t2 permutation allowed) + permutation-aware event purity. Deviations from the
+# paper config: detection_loss_scale 1.0 (OG 0.0), 50 epochs (OG 500), workers 0.
+# NB the OG recipe includes balance_particles=true (confounds arch with reweighting;
+# the rewt A/B isolates reweighting).
+model,FR_slotfree,SRqq_slotfree,FB_slotfree,event_purity_perm
+ogref,5.1,36.6,96.2,14.63
+vanilla_wclzbk8u,25.0,71.3,99.8,36.56
+blocks_iflm6fht,26.0,71.3,99.7,37.19
