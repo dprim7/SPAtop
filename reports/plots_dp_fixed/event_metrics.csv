@@ -1,0 +1,5 @@
+dataset,model,event_purity_all,event_purity_strict_slots,n_events_with_target,purity_FR-only,n_FR-only,purity_has-SRqq,n_has-SRqq,purity_has-FB,n_has-FB,purity_2FR,n_2FR
+old,vanilla,50.21,24.36,170991,7.97,30052,54.71,126038,85.89,20645,5.51,399
+old,pairwise,56.93,28.48,170991,12.23,30052,62.74,126038,86.58,20645,6.27,399
+fixed,vanilla,36.56,15.24,178436,29.42,85978,37.6,82817,78.59,13380,5.38,7771
+fixed,blocks,37.19,20.79,178436,30.17,85978,38.12,82817,78.89,13380,5.87,7771
