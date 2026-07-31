@@ -1,0 +1,17 @@
+# Feedback-round arms on the shared fixed test set (tpm70_wpm30_FB350_fixed_test).
+# Convention: slot-order-free per-topology (fraction of true tops reconstructed by either
+# slot, t1/t2 permutation allowed) + permutation-aware event purity.
+# rewt  = blocks iflm6fht config + balance_particles:true (ONLY delta; W&B gqdxggcd,
+#         best ckpt epoch 39 val 0.217 vs 0.401 unweighted) -> HARMFUL: FR collapses,
+#         SRqq -27pts, FB (the rare class it favors) was already saturated. Do not use
+#         balance_particles on fixed data with this config.
+# ogref = OG SPANet-paper full_hadronic_ttbar config on v11+fixed (W&B gusmb6vq, best
+#         ckpt epoch 11 val 0.200); NB the OG recipe itself includes balance_particles,
+#         which the rewt A/B shows is the dominant cause of its deficit (0.200 OG-arch
+#         vs 0.217 tuned-blocks-arch, both reweighted). Deviations: detection_loss 1.0
+#         (OG 0.0), 50 epochs (OG 500), workers 0.
+model,val_avg_jet_acc_best,FR_slotfree,SRqq_slotfree,FB_slotfree,event_purity_perm
+vanilla_wclzbk8u,0.394,25.0,71.3,99.8,36.56
+blocks_iflm6fht,0.401,26.0,71.3,99.7,37.19
+blocks_rewt,0.217,1.6,44.2,99.7,15.23
+ogref,0.200,5.1,36.6,96.2,14.63
