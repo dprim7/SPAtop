@@ -305,7 +305,8 @@ def plot_pur_eff_w_dict(
         if 'chi2' in tag:
             tag_list = tag.split('_')
             tag = tag_list[0]
-            chi2_cuts = [int(cut) for cut in tag_list[1:]]
+            # tag convention: 'chi2_<boostedcut>_<resolvedcut>'; bare 'chi2' -> defaults
+            chi2_cuts = [int(cut) for cut in tag_list[1:]] or [45, 20]
 
             print("Processing", tag_label)
             results, SR_condition = calc_pur_eff(target_path, pred_path, bins_dict, chi2_cuts=chi2_cuts)

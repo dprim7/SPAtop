@@ -179,8 +179,8 @@ def parse_boosted_w_target(
     # collect veryfatjet kinematics
     vfj_pt = np.array(testfile["INPUTS"]["VeryBoostedJets"]["vfj_pt"])
     vfj_eta = np.array(testfile["INPUTS"]["VeryBoostedJets"]["vfj_eta"])
-    vfj_phi = np.array(testfile["INPUTS"]["VeryBoostedJets"]["vfj_pt"])
-    vfj_mass = np.array(testfile["INPUTS"]["VeryBoostedJets"]["vfj_pt"])
+    vfj_phi = np.array(testfile["INPUTS"]["VeryBoostedJets"]["vfj_phi"])
+    vfj_mass = np.array(testfile["INPUTS"]["VeryBoostedJets"]["vfj_mass"])
     vfjs = ak.zip({
         "pt": vfj_pt,
         "eta": vfj_eta,
