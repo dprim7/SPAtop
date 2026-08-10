@@ -1,0 +1,49 @@
+# tttt pilot h5 conversion: the GROUP's converter, unmodified, with
+# --n-tops 4 (the CLI already supports IntRange(2,4)). Produces
+# training (80%) and testing (20%) h5 from the 20 pilot ROOT shards.
+# APPLY AFTER dp-tttt-gen completes.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: dp-tttt-convert
+  namespace: axol1tl
+spec:
+  backoffLimit: 1
+  ttlSecondsAfterFinished: 172800
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: convert
+        image: gitlab-registry.nrp-nautilus.io/mquinnan/top-spanet:spatop-container
+        command:
+        - /bin/bash
+        - -c
+        - |
+          set -e
+          git clone -q https://github.com/tcoulvert/SPAtop.git /opt/SPAtop
+          cd /opt/SPAtop && echo "group repo @ $(git rev-parse --short HEAD)"
+          pip install --quiet numpy h5py uproot awkward vector numba click hist mplhep matplotlib cycler
+          N=$(ls /data/spatop/tttt_pilot/root/tttt_hadronic_*.root 2>/dev/null | wc -l)
+          echo "input ROOT shards: $N"
+          [ "$N" -ge 1 ] || { echo "NO-INPUTS"; exit 1; }
+          mkdir -p /data/spatop/tttt_pilot/h5
+          export PYTHONPATH=/opt/SPAtop:$PYTHONPATH
+          python src/data/delphes/convert_to_h5.py \
+            /data/spatop/tttt_pilot/root/ \
+            --out-file /data/spatop/tttt_pilot/h5/tttt_training.h5 \
+            --train-frac 0.80 --n-tops 4 2>&1 | grep -vE "^Warning" | tail -30
+          python src/data/delphes/convert_to_h5.py \
+            /data/spatop/tttt_pilot/root/ \
+            --out-file /data/spatop/tttt_pilot/h5/tttt_testing.h5 \
+            --train-frac 0.80 --n-tops 4 2>&1 | grep -vE "^Warning" | tail -12
+          ls -la /data/spatop/tttt_pilot/h5/
+          echo "CONVERT DONE"
+        resources:
+          limits:   {cpu: "4", memory: 24Gi}
+          requests: {cpu: "4", memory: 24Gi}
+        volumeMounts:
+        - {mountPath: /data, name: vol}
+      volumes:
+      - name: vol
+        persistentVolumeClaim: {claimName: traindatavol}
