@@ -24,17 +24,17 @@ spec:
           git clone -q https://github.com/tcoulvert/SPAtop.git /opt/SPAtop
           cd /opt/SPAtop && echo "group repo @ $(git rev-parse --short HEAD)"
           pip install --quiet numpy h5py uproot awkward vector numba click hist mplhep matplotlib cycler
-          N=$(ls /data/spatop/tttt_pilot/root/tttt_hadronic_*.root 2>/dev/null | wc -l)
+          N=$(ls /data/spatop/tttt_pilot/root_v2/tttt_hadronic_*.root 2>/dev/null | wc -l)
           echo "input ROOT shards: $N"
           [ "$N" -ge 1 ] || { echo "NO-INPUTS"; exit 1; }
           mkdir -p /data/spatop/tttt_pilot/h5
           export PYTHONPATH=/opt/SPAtop:$PYTHONPATH
           python src/data/delphes/convert_to_h5.py \
-            /data/spatop/tttt_pilot/root/ \
+            /data/spatop/tttt_pilot/root_v2/ \
             --out-file /data/spatop/tttt_pilot/h5/tttt_training.h5 \
             --train-frac 0.80 --n-tops 4 2>&1 | grep -vE "^Warning" | tail -30
           python src/data/delphes/convert_to_h5.py \
-            /data/spatop/tttt_pilot/root/ \
+            /data/spatop/tttt_pilot/root_v2/ \
             --out-file /data/spatop/tttt_pilot/h5/tttt_testing.h5 \
             --train-frac 0.80 --n-tops 4 2>&1 | grep -vE "^Warning" | tail -12
           ls -la /data/spatop/tttt_pilot/h5/
