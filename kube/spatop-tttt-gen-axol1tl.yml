@@ -1,0 +1,70 @@
+# tttt pilot generation (WS-tttt): 20 shards x 5000 events = 100k all-hadronic
+# pp > t t~ t t~ events. Per shard: MadGraph (iseed = index+1) -> LHE ->
+# DelphesPythia8 (built from the image's Delphes source against its
+# /usr/local Pythia8; binary cached at /data/spatop/tttt_pilot/bin/) -> ROOT.
+# Cards from configmap dp-tttt-cards (process card in simulation/tttt/,
+# pythia cmnd + delphes tcl from tcoulvert/MaPyDe_production@main).
+# Measured cost: ~1 s/event MG incl. per-shard process compile.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: dp-tttt-gen
+  namespace: axol1tl
+spec:
+  completions: 20
+  parallelism: 10
+  completionMode: Indexed
+  backoffLimit: 10
+  ttlSecondsAfterFinished: 172800
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: gen
+        image: docker.io/jmduarte/mapyde:latest
+        command:
+        - /bin/bash
+        - -c
+        - |
+          set -e
+          IDX=${JOB_COMPLETION_INDEX}
+          NEV=5000
+          OUT=/data/spatop/tttt_pilot
+          if [ -f $OUT/root/tttt_hadronic_${IDX}.root ]; then
+            echo "shard ${IDX} already done"; exit 0
+          fi
+          mkdir -p /work && cd /work
+          cp /cards/tttt_hadronic.txt input.dat
+          echo "set run_card iseed $((IDX+1))" >> input.dat
+          echo "set run_card nevents ${NEV}" >> input.dat
+          T0=$(date +%s)
+          mg5_aMC input.dat 2>&1 | tail -4
+          T1=$(date +%s)
+          echo "shard ${IDX}: MG ${NEV} events in $((T1-T0))s"
+          LHE=tttt_hadronic/Events/run_01/unweighted_events.lhe.gz
+          gunzip -k $LHE
+          echo "shard ${IDX}: LHE events = $(grep -c '<event>' tttt_hadronic/Events/run_01/unweighted_events.lhe)"
+          cp /cards/pythia_LHE.cmnd config_pythia.cmnd
+          echo "Main:numberOfEvents = ${NEV}" >> config_pythia.cmnd
+          echo "Beams:LHEF = tttt_hadronic/Events/run_01/unweighted_events.lhe" >> config_pythia.cmnd
+          export PYTHIA8DATA=/usr/local/share/Pythia8/xmldoc
+          export LD_LIBRARY_PATH=/usr/local/share/delphes/Delphes-3.5.0:$LD_LIBRARY_PATH
+          T2=$(date +%s)
+          $OUT/bin/DelphesPythia8 /cards/delphes_card_CMS_vfj.tcl config_pythia.cmnd tttt_out.root 2>&1 | tail -4
+          T3=$(date +%s)
+          echo "shard ${IDX}: Pythia+Delphes in $((T3-T2))s"
+          mkdir -p $OUT/root $OUT/lhe
+          cp tttt_out.root $OUT/root/tttt_hadronic_${IDX}.root
+          cp $LHE $OUT/lhe/tttt_hadronic_${IDX}.lhe.gz
+          echo "SHARD-${IDX}-DONE"
+        resources:
+          limits:   {cpu: "4", memory: 8Gi}
+          requests: {cpu: "4", memory: 8Gi}
+        volumeMounts:
+        - {mountPath: /cards, name: cards}
+        - {mountPath: /data, name: vol}
+      volumes:
+      - name: cards
+        configMap: {name: dp-tttt-cards}
+      - name: vol
+        persistentVolumeClaim: {claimName: traindatavol}
