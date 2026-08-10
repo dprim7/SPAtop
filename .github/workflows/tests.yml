@@ -15,6 +15,6 @@ jobs:
           python-version: "3.11"
       - name: Install test dependencies
         run: |
-          pip install numpy h5py awkward vector numba click matplotlib pytest
+          pip install numpy h5py awkward vector numba click matplotlib pytest hist scipy
       - name: Run test suite
         run: pytest tests/ -q

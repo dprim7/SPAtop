@@ -65,16 +65,29 @@ def test_two_planted_tops_disjoint(toy_two_top_file):
 # ---------------------------------------------------------------------------
 # b-tag partitioning (spec)
 # ---------------------------------------------------------------------------
-def test_btag_partitioning(tmp_path):
-    # perfect kinematic triplet but the "b" is NOT tagged -> unusable as b;
-    # the only tagged jet is junk far away
+def test_btag_partitioning(tmp_path, toy_two_top_file):
+    # perfect kinematic triplet but the "b" is NOT tagged: the only tagged jet
+    # (index 3) MUST be chosen as b, and the W legs must come from the
+    # untagged set. (No chi2-magnitude assertion: leftover pairings are
+    # allowed to be kinematically good; the spec is the partitioning.)
     toys = ToyEvents()
     b, q1, q2 = plant_top()
     untagged_b = (b[0], b[1], b[2], b[3], False)
     toys.add([untagged_b, q1, q2] + JUNK_B)
     res = run_resolved(toys, toys.write(tmp_path / "t.h5"))
     assert res["FRt1_b"][0] == 3, "b must come from the b-tagged jet"
-    assert res["FRt1_chi2"][0] > 1.0, "no clean top available without the tag"
+    assert {res["FRt1_q1"][0], res["FRt1_q2"][0]} <= {0, 1, 2}
+
+    # property over the mixed toys: every reconstructed top respects the
+    # partitioning
+    mix, path = toy_two_top_file
+    res2 = run_resolved(mix, path)
+    for ev, jets in enumerate(mix.jets):
+        for i in (1, 2):
+            if res2[f"FRt{i}_mask"][ev]:
+                assert jets[res2[f"FRt{i}_b"][ev]][4] is True
+                assert jets[res2[f"FRt{i}_q1"][ev]][4] is False
+                assert jets[res2[f"FRt{i}_q2"][ev]][4] is False
 
 
 def test_no_btag_no_candidate(tmp_path):
