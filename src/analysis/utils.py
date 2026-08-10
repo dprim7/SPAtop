@@ -31,9 +31,9 @@ def dp_to_TopNumProb(dps):
         P_noexist_per_comb = [np.prod(1 - dps[:, list(set(range(Nmax)) - set(comb))], axis=-1) for comb in combs]
 
         # concatenate each combination to array for further calculation
-        P_exist_per_comb = [np.reshape(P_comb_e, newshape=(-1, 1)) for P_comb_e in P_exist_per_comb]
+        P_exist_per_comb = [np.reshape(P_comb_e, (-1, 1)) for P_comb_e in P_exist_per_comb]
         P_exist_per_comb = np.concatenate(P_exist_per_comb, axis=1)
-        P_noexist_per_comb = [np.reshape(P_comb_e, newshape=(-1, 1)) for P_comb_e in P_noexist_per_comb]
+        P_noexist_per_comb = [np.reshape(P_comb_e, (-1, 1)) for P_comb_e in P_noexist_per_comb]
         P_noexist_per_comb = np.concatenate(P_noexist_per_comb, axis=1)
 
         # for each combination, calculate the joint probability
@@ -44,7 +44,7 @@ def dp_to_TopNumProb(dps):
         P = np.sum(P_per_comb, axis=-1)
 
         # reshape and add to the prob list
-        probs.append(np.reshape(P, newshape=(-1, 1)))
+        probs.append(np.reshape(P, (-1, 1)))
 
     # convert the probs list to arr
     probs_arr = np.concatenate(probs, axis=1)
