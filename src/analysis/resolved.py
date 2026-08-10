@@ -22,7 +22,7 @@ def get_unoverlapped_jet_index(fjs, js, dR_min=0.5):
     for i in range(1, len(fjs)):
         overlapped = overlapped | ak.sum(js[:, np.newaxis].deltaR(fjs[i]) < dR_min, axis=-2) > 0
 
-    jet_index_passed = ak.local_index(js).mask[~overlapped]
+    jet_index_passed = ak.mask(ak.local_index(js), ~overlapped)
     jet_index_passed = ak.drop_none(jet_index_passed)
     return jet_index_passed
 
@@ -49,31 +49,31 @@ def sel_pred_FRt_by_dp_ap(dps, aps, b_ps, q1_ps, q2_ps):
     q2_ak4_filter = q2_ps_sel < N_AK4_JETS
     filter = b_ak4_filter & q1_ak4_filter & q2_ak4_filter
 
-    b_ps_passed = b_ps_sel.mask[filter]
+    b_ps_passed = ak.mask(b_ps_sel, filter)
     b_ps_passed = ak.drop_none(b_ps_passed)
 
-    q1_ps_passed = q1_ps_sel.mask[filter]
+    q1_ps_passed = ak.mask(q1_ps_sel, filter)
     q1_ps_passed = ak.drop_none(q1_ps_passed)
 
-    q2_ps_passed = q2_ps_sel.mask[filter]
+    q2_ps_passed = ak.mask(q2_ps_sel, filter)
     q2_ps_passed = ak.drop_none(q2_ps_passed)
 
     return b_ps_passed, q1_ps_passed, q2_ps_passed
 
 def sel_target_FRt_by_mask(b_ts, q1_ts, q2_ts, FRt_pts, FRt_overlap, FRt_masks):
-    b_ts_selected = b_ts.mask[FRt_masks]
+    b_ts_selected = ak.mask(b_ts, FRt_masks)
     b_ts_selected = ak.drop_none(b_ts_selected)
 
-    q1_ts_selected = q1_ts.mask[FRt_masks]
+    q1_ts_selected = ak.mask(q1_ts, FRt_masks)
     q1_ts_selected = ak.drop_none(q1_ts_selected)
 
-    q2_ts_selected = q2_ts.mask[FRt_masks]
+    q2_ts_selected = ak.mask(q2_ts, FRt_masks)
     q2_ts_selected = ak.drop_none(q2_ts_selected)
 
-    FRt_selected_pts = FRt_pts.mask[FRt_masks]
+    FRt_selected_pts = ak.mask(FRt_pts, FRt_masks)
     FRt_selected_pts = ak.drop_none(FRt_selected_pts)
 
-    FRt_overlap_passed = FRt_overlap.mask[FRt_masks]
+    FRt_overlap_passed = ak.mask(FRt_overlap, FRt_masks)
     FRt_overlap_passed = ak.drop_none(FRt_overlap_passed)
 
     return b_ts_selected, q1_ts_selected, q2_ts_selected, FRt_selected_pts, FRt_overlap_passed

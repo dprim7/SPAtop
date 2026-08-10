@@ -29,17 +29,17 @@ def sel_pred_FBt_by_dp_ap(dps, aps, bqq_ps):
 
     # require bqq assignment is a AK15 jet
     ak15Filter = bqq_ps_sel >= (N_AK4_JETS + N_AK8_JETS)
-    bqq_ps_passed = bqq_ps_sel.mask[ak15Filter]
+    bqq_ps_passed = ak.mask(bqq_ps_sel, ak15Filter)
     bqq_ps_passed = ak.drop_none(bqq_ps_passed)
 
     return bqq_ps_passed
 
 
 def sel_target_FBt_by_mask(bqq_ts, FBt_pts, FBt_masks):
-    bqq_ts_selected = bqq_ts.mask[FBt_masks]
+    bqq_ts_selected = ak.mask(bqq_ts, FBt_masks)
     bqq_ts_selected = ak.drop_none(bqq_ts_selected)
 
-    FBt_selected_pts = FBt_pts.mask[FBt_masks]
+    FBt_selected_pts = ak.mask(FBt_pts, FBt_masks)
     FBt_selected_pts = ak.drop_none(FBt_selected_pts)
 
     return bqq_ts_selected, FBt_selected_pts
