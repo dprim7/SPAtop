@@ -45,8 +45,11 @@ spec:
           gunzip -k $LHE
           echo "shard ${IDX}: LHE events = $(grep -c '<event>' tttt_hadronic/Events/run_01/unweighted_events.lhe)"
           cp /cards/pythia_LHE.cmnd config_pythia.cmnd
-          echo "Main:numberOfEvents = ${NEV}" >> config_pythia.cmnd
-          echo "Beams:LHEF = tttt_hadronic/Events/run_01/unweighted_events.lhe" >> config_pythia.cmnd
+          # NB: the upstream cmnd has NO trailing newline -- the leading \n is
+          # load-bearing (without it the first append glues onto the final
+          # comment line and is silently ignored; cost us a 5x event deficit)
+          printf "\nMain:numberOfEvents = %s\n" "${NEV}" >> config_pythia.cmnd
+          printf "Beams:LHEF = tttt_hadronic/Events/run_01/unweighted_events.lhe\n" >> config_pythia.cmnd
           export PYTHIA8DATA=/usr/local/share/Pythia8/xmldoc
           export LD_LIBRARY_PATH=/usr/local/share/delphes/Delphes-3.5.0:$LD_LIBRARY_PATH
           T2=$(date +%s)
