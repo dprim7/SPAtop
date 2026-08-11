@@ -98,7 +98,7 @@ plot_pur_eff_w_dict(
         "SPAtop":     "path/to/tt_hadronic_predict.h5",
         "chi2_45_20": "path/to/tt_hadronic_chi2_baseline.h5",
     },
-    target_file="path/to/tt_hadronic_testing_SLIMMED.h5",
+    "path/to/tt_hadronic_testing_SLIMMED.h5",  # target_path
     save_path="plots", proj_name="SPAtop",
 )
 ```
