@@ -6,6 +6,10 @@ chi2, and writes a prediction file that plugs into the same analysis and
 plots as the SPANet predictions. Use it whenever you need the "how much does
 the network actually buy us" comparison.
 
+New to the project? Start with
+[undergrad_tasks.md](undergrad_tasks.md) instead — it walks through setup and
+a ladder of tasks, using this document as the reference.
+
 It lives in one module: `src/models/chi2_baseline.py`
 (it replaces the older `fully_resolved_baseline.py`,
 `fully_boosted_baseline.py` and `boosted_resolved_baseline.py` scripts,

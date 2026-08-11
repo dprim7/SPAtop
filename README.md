@@ -171,6 +171,10 @@ files compatible with the analysis/plotting above -- see
 [docs/chi2_baseline.md](docs/chi2_baseline.md) for how to run it (CLI and
 notebook), the output format, and how to overlay it on the SPANet curves.
 
+**New to the project?** [docs/undergrad_tasks.md](docs/undergrad_tasks.md) is a
+setup guide and a ladder of six self-contained tasks in this area, all of which
+run on a laptop (no cluster account needed).
+
 ```bash
 python -m src.models.chi2_baseline --test-file <test.h5> --out-file <pred.h5> --plot-dir plots/chi2_qa
 ```

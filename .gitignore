@@ -2,5 +2,15 @@
 *pyc
 .DS_Store
 *.egg-info
-notebooks/
-notebooks/plot_pur_eff_w_dict.ipynb
+
+# Data files are never committed -- see docs/undergrad_tasks.md for how to fetch them.
+*.h5
+*.root
+
+# Generated plot output.
+plots/
+notebooks/**/plots/
+
+# NOTE: notebooks/ is deliberately NOT ignored. It used to be, which silently
+# swallowed every new notebook (they never showed up in `git status`). If you
+# add a notebook, clear its outputs before committing.
