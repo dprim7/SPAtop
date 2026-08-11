@@ -27,7 +27,7 @@ spec:
           OUT = "/data/spatop/tttt_15M"
           import os
           os.makedirs(f"{OUT}/h5", exist_ok=True)
-          for kind in ("train", "test"):
+          for kind in ("training", "testing"):
               parts = sorted(glob.glob(f"{OUT}/h5_parts/{kind}_part*.h5"),
                              key=lambda p: int(re.search(r"part(\d+)", p).group(1)))
               print(f"{kind}: {len(parts)} parts")
@@ -35,7 +35,7 @@ spec:
               with h5py.File(parts[0], "r") as h0:
                   keys = []
                   h0.visit(lambda n: keys.append(n) if isinstance(h0[n], h5py.Dataset) else None)
-              name = "training" if kind == "train" else "testing"
+              name = kind
               with h5py.File(f"{OUT}/h5/tttt_{name}.h5", "w") as out:
                   for k in keys:
                       arrs = []
