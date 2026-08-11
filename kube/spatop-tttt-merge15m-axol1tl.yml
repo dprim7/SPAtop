@@ -1,0 +1,57 @@
+# Merge the 25 conversion parts into the final training/testing h5 pair.
+# APPLY AFTER dp-tttt-convert15m completes.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: dp-tttt-merge15m
+  namespace: axol1tl
+spec:
+  backoffLimit: 1
+  ttlSecondsAfterFinished: 259200
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: merge
+        image: gitlab-registry.nrp-nautilus.io/mquinnan/top-spanet:spatop-container
+        command:
+        - /bin/bash
+        - -c
+        - |
+          set -e
+          pip install --quiet numpy h5py
+          python - <<'PYEOF'
+          import glob, re
+          import numpy as np
+          import h5py
+          OUT = "/data/spatop/tttt_15M"
+          import os
+          os.makedirs(f"{OUT}/h5", exist_ok=True)
+          for kind in ("train", "test"):
+              parts = sorted(glob.glob(f"{OUT}/h5_parts/{kind}_part*.h5"),
+                             key=lambda p: int(re.search(r"part(\d+)", p).group(1)))
+              print(f"{kind}: {len(parts)} parts")
+              keys = None
+              with h5py.File(parts[0], "r") as h0:
+                  keys = []
+                  h0.visit(lambda n: keys.append(n) if isinstance(h0[n], h5py.Dataset) else None)
+              name = "training" if kind == "train" else "testing"
+              with h5py.File(f"{OUT}/h5/tttt_{name}.h5", "w") as out:
+                  for k in keys:
+                      arrs = []
+                      for p in parts:
+                          with h5py.File(p, "r") as h:
+                              arrs.append(np.asarray(h[k]))
+                      out.create_dataset(k, data=np.concatenate(arrs, axis=0))
+              with h5py.File(f"{OUT}/h5/tttt_{name}.h5", "r") as h:
+                  print(f"  tttt_{name}.h5: {h[keys[0]].shape[0]:,} events")
+          print("MERGE DONE")
+          PYEOF
+        resources:
+          limits:   {cpu: "4", memory: 48Gi}
+          requests: {cpu: "4", memory: 48Gi}
+        volumeMounts:
+        - {mountPath: /data, name: vol}
+      volumes:
+      - name: vol
+        persistentVolumeClaim: {claimName: traindatavol}

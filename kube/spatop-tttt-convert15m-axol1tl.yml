@@ -1,0 +1,53 @@
+# Sharded conversion of the 15M campaign: 25 indexed pods x 30 ROOT files,
+# each writing train/test h5 parts; merge with spatop-tttt-merge15m job after.
+# APPLY AFTER dp-tttt-gen15m completes.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: dp-tttt-convert15m
+  namespace: axol1tl
+spec:
+  completions: 25
+  parallelism: 25
+  completionMode: Indexed
+  backoffLimit: 25
+  ttlSecondsAfterFinished: 259200
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: convert
+        image: gitlab-registry.nrp-nautilus.io/mquinnan/top-spanet:spatop-container
+        command:
+        - /bin/bash
+        - -c
+        - |
+          set -e
+          IDX=${JOB_COMPLETION_INDEX}
+          OUT=/data/spatop/tttt_15M
+          if [ -f $OUT/h5_parts/test_part${IDX}.h5 ]; then echo "part ${IDX} done"; exit 0; fi
+          git clone -q https://github.com/tcoulvert/SPAtop.git /opt/SPAtop
+          cd /opt/SPAtop
+          pip install --quiet numpy h5py uproot awkward vector numba click hist mplhep matplotlib cycler
+          FILES=""
+          for i in $(seq $((IDX*30)) $((IDX*30+29))); do
+            [ -f $OUT/root/tttt_hadronic_${i}.root ] && FILES="$FILES $OUT/root/tttt_hadronic_${i}.root"
+          done
+          echo "part ${IDX}: $(echo $FILES | wc -w) files"
+          mkdir -p $OUT/h5_parts
+          export PYTHONPATH=/opt/SPAtop:$PYTHONPATH
+          python src/data/delphes/convert_to_h5.py $FILES \
+            --out-file $OUT/h5_parts/train_part${IDX}.h5 \
+            --train-frac 0.80 --n-tops 4 2>&1 | tail -3
+          python src/data/delphes/convert_to_h5.py $FILES \
+            --out-file $OUT/h5_parts/test_part${IDX}.h5 \
+            --train-frac 0.80 --n-tops 4 2>&1 | tail -3
+          echo "PART-${IDX}-DONE"
+        resources:
+          limits:   {cpu: "4", memory: 24Gi}
+          requests: {cpu: "4", memory: 24Gi}
+        volumeMounts:
+        - {mountPath: /data, name: vol}
+      volumes:
+      - name: vol
+        persistentVolumeClaim: {claimName: traindatavol}
