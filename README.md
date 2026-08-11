@@ -163,3 +163,14 @@ event_files/cms/hhh_bregcorr.yaml # jet pT with b-jet energy correction scale fa
 ```
 
 Note: to run the training with the b-jet energy correction applied, the `log_normalize` of the input variable was removed. Keeping it caused a 'Assignement collision'.
+
+## Chi-squared baseline
+
+A classical mass-chi2 reference reconstruction that produces prediction
+files compatible with the analysis/plotting above -- see
+[docs/chi2_baseline.md](docs/chi2_baseline.md) for how to run it (CLI and
+notebook), the output format, and how to overlay it on the SPANet curves.
+
+```bash
+python -m src.models.chi2_baseline --test-file <test.h5> --out-file <pred.h5> --plot-dir plots/chi2_qa
+```
