@@ -1,0 +1,9 @@
+generate p p > t t~ t t~ t t~
+output tttttt_prod
+launch
+
+set run_card ebeam1 7000
+set run_card ebeam2 7000
+set param_card mass 6 172.5
+set param_card mass 25 125.0
+set param_card yukawa 6 172.5
