@@ -301,8 +301,10 @@ def qa_report(in_file, resolved, boosted, n_tops, plot_dir,
         ax_r.legend()
         fig_h.tight_layout()
         fig_r.tight_layout()
-        fig_h.savefig(os.path.join(plot_dir, f"chi2_{arm}_distributions.pdf"))
-        fig_r.savefig(os.path.join(plot_dir, f"chi2_{arm}_roc.pdf"))
+        # pdf for slides, png for notebook display
+        for ext in ("pdf", "png"):
+            fig_h.savefig(os.path.join(plot_dir, f"chi2_{arm}_distributions.{ext}"))
+            fig_r.savefig(os.path.join(plot_dir, f"chi2_{arm}_roc.{ext}"))
         plt.close(fig_h)
         plt.close(fig_r)
     log.info("QA plots in %s", plot_dir)

@@ -85,8 +85,8 @@ def test_qa_report_runs(toy_two_top_file, tmp_path):
         qa_report(f, res, boo, 2, str(plot_dir))
     produced = {p.name for p in plot_dir.iterdir()}
     assert {
-        "chi2_resolved_distributions.pdf",
-        "chi2_resolved_roc.pdf",
-        "chi2_boosted_distributions.pdf",
-        "chi2_boosted_roc.pdf",
+        f"chi2_{arm}_{kind}.{ext}"
+        for arm in ("resolved", "boosted")
+        for kind in ("distributions", "roc")
+        for ext in ("pdf", "png")
     } <= produced
