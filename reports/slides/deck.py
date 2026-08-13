@@ -20,11 +20,19 @@ House rules this template enforces (the point of having a standard):
      the speaker-notes appendix (--notes) and are there for the Q&A.
   5. Numbers are tabular; the row that wins is highlighted, never explained.
 
-BRAND ASSETS (drop-in, not fabricated):
-  reports/slides/assets/ucsd-logo.png   <- official mark from brand.ucsd.edu
-  If the file is absent the deck renders cleanly without it.
-Palette below follows the UC San Diego primary colours; confirm against the
-current brand guide before an external talk.
+BRAND ASSETS (drop-in, never fabricated):
+  assets/ucsd-logo.png   <- official mark from brand.ucsd.edu
+  assets/cms-logo.png    <- official CMS mark from the collaboration resources
+Missing assets render as a clearly-marked dashed placeholder so the layout is
+still reviewable; drop the real file in and it appears everywhere.
+
+LOGO PLACEMENT (HEP convention, and configurable):
+  Title slide  -- experiment mark top-LEFT, institution mark top-RIGHT, large.
+  Content      -- both marks small, together in the top-RIGHT, so the headline
+                  keeps the full left edge and the assertion is read first.
+  Set LOGO_SPLIT = True to mirror the title-slide split onto every slide.
+Palette follows the UC San Diego primary colours; confirm against the current
+brand guide before an external talk.
 """
 import base64
 import html as _html
@@ -32,6 +40,10 @@ import os
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ASSETS = os.path.join(HERE, "assets")
+
+# Content slides: False = both marks together top-right (default, keeps the
+# headline's left edge clear); True = experiment left / institution right.
+LOGO_SPLIT = False
 
 # --- UC San Diego primary palette -------------------------------------------
 NAVY = "#182B49"   # UCSD Navy   -- headlines, title slide ground, table header
@@ -56,6 +68,17 @@ def _uri(path):
         return f"data:{mime};base64," + base64.b64encode(f.read()).decode()
 
 
+def _mark(kind, cls):
+    """Institution/experiment mark, or a labelled placeholder if absent."""
+    names = {"inst": ("ucsd-logo", "UCSD"), "exp": ("cms-logo", "CMS")}
+    stem, label = names[kind]
+    for ext in ("png", "svg", "jpg"):
+        u = _uri(os.path.join(ASSETS, f"{stem}.{ext}"))
+        if u:
+            return f"<img class='{cls}' src='{u}' alt='{label}'>"
+    return f"<span class='{cls} ph'>{label}</span>"
+
+
 def _esc(s):
     return _html.escape(str(s), quote=False)
 
@@ -74,11 +97,10 @@ def _rich(s):
 
 def _title_slide(s, logo):
     sub = f"<p class='t-sub'>{_rich(s['subtitle'])}</p>" if s.get("subtitle") else ""
-    mark = f"<img class='t-logo' src='{logo}' alt=''>" if logo else ""
     meta = " &nbsp;·&nbsp; ".join(_esc(x) for x in s.get("meta", []))
     return f"""<section class="slide title">
+  <div class="t-marks">{_mark('exp', 't-logo')}{_mark('inst', 't-logo')}</div>
   <div class="t-body">
-    {mark}
     <h1>{_rich(s['title'])}</h1>
     <div class="t-rule"></div>
     {sub}
@@ -94,6 +116,14 @@ def _divider_slide(s, logo):
     <h2>{_rich(s['title'])}</h2>
   </div>
 </section>"""
+
+
+def _corner_marks():
+    if LOGO_SPLIT:
+        return (f"<div class='marks left'>{_mark('exp', 'c-logo')}</div>"
+                f"<div class='marks right'>{_mark('inst', 'c-logo')}</div>")
+    return (f"<div class='marks right'>{_mark('exp', 'c-logo')}"
+            f"{_mark('inst', 'c-logo')}</div>")
 
 
 def _bullets_html(items):
@@ -125,11 +155,11 @@ def _content_slide(s, logo, num, total, footer):
     if s.get("kicker"):
         body += f"<p class='kicker'>{_rich(s['kicker'])}</p>"
     layout = "split" if (fig and s.get("bullets")) else "stack"
-    mark = f"<img class='f-logo' src='{logo}' alt=''>" if logo else ""
     return f"""<section class="slide">
+  {_corner_marks()}
   <header><h2>{_rich(s['title'])}</h2><div class="rule"></div></header>
   <div class="body {layout}">{body}</div>
-  <footer>{mark}<span class="f-txt">{_esc(footer)}</span><span class="f-num">{num}</span></footer>
+  <footer><span class="f-txt">{_esc(footer)}</span><span class="f-num">{num}</span></footer>
 </section>"""
 
 
@@ -137,11 +167,11 @@ def _decisions_slide(s, logo, num, total, footer):
     items = "".join(
         f"<li><span class='dn'>{i+1}</span><span class='dt'>{_rich(d)}</span></li>"
         for i, d in enumerate(s["decisions"]))
-    mark = f"<img class='f-logo' src='{logo}' alt=''>" if logo else ""
     return f"""<section class="slide">
+  {_corner_marks()}
   <header><h2>{_rich(s['title'])}</h2><div class="rule"></div></header>
   <div class="body stack"><ol class="dec">{items}</ol></div>
-  <footer>{mark}<span class="f-txt">{_esc(footer)}</span><span class="f-num">{num}</span></footer>
+  <footer><span class="f-txt">{_esc(footer)}</span><span class="f-num">{num}</span></footer>
 </section>"""
 
 
@@ -153,7 +183,15 @@ html,body{{margin:0;padding:0;background:#20242b;
 .slide{{position:relative;width:1280px;height:720px;flex:0 0 auto;background:{PAPER};
   overflow:hidden;box-shadow:0 6px 26px rgba(0,0,0,.34);padding:58px 72px 0;}}
 .slide header{{margin-bottom:26px;}}
-.slide h2{{font-size:40px;line-height:1.14;letter-spacing:-.02em;font-weight:700;
+.marks{{position:absolute;top:30px;display:flex;align-items:center;gap:14px;z-index:2;}}
+.marks.right{{right:72px;}}
+.marks.left{{left:72px;}}
+.c-logo{{height:26px;width:auto;opacity:.92;}}
+.ph{{display:inline-flex;align-items:center;justify-content:center;
+  border:1px dashed #B9C3CE;color:#9AA6B4;border-radius:3px;
+  font-size:11px;letter-spacing:.09em;padding:0 9px;height:26px;}}
+.t-logo.ph{{height:52px;font-size:15px;padding:0 20px;border-color:#5E7A9A;color:#9FB4CC;}}
+.slide h2{{max-width:940px;font-size:40px;line-height:1.14;letter-spacing:-.02em;font-weight:700;
   color:{NAVY};margin:0;max-width:1040px;text-wrap:balance;}}
 .rule{{width:104px;height:5px;background:{GOLD};margin-top:18px;}}
 .body{{height:474px;display:flex;gap:44px;}}
@@ -188,12 +226,13 @@ tbody tr.win td{{background:{GOLD};font-weight:700;color:{NAVY};}}
 .dt b{{color:{NAVY};}}
 .slide footer{{position:absolute;left:72px;right:72px;bottom:26px;display:flex;
   align-items:center;gap:16px;border-top:1px solid #E2E7EC;padding-top:12px;}}
-.f-logo{{height:30px;width:auto;}}
 .f-txt{{font-size:15px;color:{MUTED};}}
 .f-num{{margin-left:auto;font-size:15px;color:{MUTED};font-variant-numeric:tabular-nums;}}
 .slide.title{{background:{NAVY};color:#fff;display:flex;flex-direction:column;
   justify-content:center;padding:0 92px;}}
-.t-logo{{height:56px;width:auto;margin-bottom:34px;display:block;}}
+.t-marks{{position:absolute;top:56px;left:92px;right:92px;display:flex;
+  align-items:center;justify-content:space-between;}}
+.t-logo{{height:52px;width:auto;}}
 .slide.title h1{{font-size:60px;line-height:1.08;letter-spacing:-.025em;font-weight:700;
   margin:0;max-width:1020px;text-wrap:balance;}}
 .t-rule{{width:132px;height:6px;background:{GOLD};margin:26px 0;}}

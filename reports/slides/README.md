@@ -29,6 +29,22 @@ Palette follows the UC San Diego primary colours (Navy `#182B49`, Blue
 `#00629B`, Gold `#FFCD00`) — confirm against the current brand guide before an
 external talk.
 
-**Logo**: drop the official mark at `assets/ucsd-logo.png` (or `.svg`) from the
-UCSD brand portal. The deck renders cleanly without it, and the file is
-deliberately not vendored here — use the real asset rather than a redrawn one.
+**Logos** are drop-in and deliberately not vendored — use the real assets, not
+redrawn ones:
+
+| file | source |
+|---|---|
+| `assets/ucsd-logo.png` | brand.ucsd.edu |
+| `assets/cms-logo.png`  | CMS collaboration resources |
+
+Missing assets render as a dashed placeholder so the layout stays reviewable.
+Placement follows the HEP convention: CMS top-left / UCSD top-right on the
+title slide, both small together in the top-right on content slides (so the
+headline keeps its left edge). Set `LOGO_SPLIT = True` in `deck.py` to mirror
+the split onto every slide.
+
+## This is also a user-level skill
+
+Installed at `~/.claude/skills/slides/` so it works in *any* project, not just
+SPAtop — ask for slides in any session and it applies these rules. The copy
+here is the SPAtop-local one; keep them in sync if you change the engine.
