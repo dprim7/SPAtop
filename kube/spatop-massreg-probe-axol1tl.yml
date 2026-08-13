@@ -1,0 +1,145 @@
+# Read-only probe answering three questions before any mass-regression run:
+#   1. Do the h5 files carry a per-top mass truth we can regress onto?
+#   2. Does dprim7/SPANet@feat/pairwise-attention still have working
+#      REGRESSIONS support (parser, dataset loader, head, loss)?
+#   3. Can the trained pairwise checkpoint be reloaded with a regression head
+#      bolted on (i.e. is fine-tuning from it possible, or must we retrain)?
+# CPU only, no GPU, nothing written.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: dp-massreg-probe
+  namespace: axol1tl
+  labels:
+    jobgroup: spatop-job-probe
+spec:
+  backoffLimit: 2
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels:
+        job-name: dp-massreg-probe
+    spec:
+      restartPolicy: Never
+      securityContext:
+        runAsUser: 0
+        fsGroup: 0
+      containers:
+      - name: probe
+        image: gitlab-registry.nrp-nautilus.io/mquinnan/top-spanet:spatop-container
+        command:
+        - /bin/bash
+        - -c
+        - |
+          set +e
+          echo "############ 1. CONFIG + DATA PATHS ############"
+          CFG=/data/spatop/options_files/v11/spatop_v11_full1GPU.json
+          python - <<'PYEOF'
+          import json, os
+          cfg = json.load(open("/data/spatop/options_files/v11/spatop_v11_full1GPU.json"))
+          for k in ("training_file", "validation_file", "testing_file", "event_info_file"):
+              print(f"{k:18} = {cfg.get(k)}")
+          print("regression_loss_scale =", cfg.get("regression_loss_scale"))
+          print("num_regression_layers =", cfg.get("num_regression_layers"))
+          PYEOF
+
+          echo
+          echo "############ 2. H5 STRUCTURE (tt large) ############"
+          python - <<'PYEOF'
+          import json, h5py
+          cfg = json.load(open("/data/spatop/options_files/v11/spatop_v11_full1GPU.json"))
+          path = cfg["training_file"]
+          print("file:", path)
+          with h5py.File(path, "r") as f:
+              def walk(name, obj):
+                  if isinstance(obj, h5py.Dataset):
+                      print(f"  {name:60} {str(obj.shape):18} {obj.dtype}")
+              f.visititems(walk)
+              print()
+              print("TOP-LEVEL GROUPS:", list(f.keys()))
+              if "REGRESSIONS" in f:
+                  print("REGRESSIONS present:", list(f["REGRESSIONS"].keys()))
+              else:
+                  print("REGRESSIONS group: ABSENT")
+          PYEOF
+
+          echo
+          echo "############ 3. EVENT FILE ############"
+          python - <<'PYEOF'
+          import json
+          cfg = json.load(open("/data/spatop/options_files/v11/spatop_v11_full1GPU.json"))
+          p = cfg["event_info_file"]
+          print("event file:", p)
+          print(open(p).read())
+          PYEOF
+
+          echo
+          echo "############ 4. SPANET FORK REGRESSION SUPPORT ############"
+          pip install -q git+https://github.com/dprim7/SPANet.git@feat/pairwise-attention 2>&1 | tail -2
+          python - <<'PYEOF'
+          import os, spanet
+          root = os.path.dirname(spanet.__file__)
+          print("spanet at", root)
+          for dirpath, dirnames, filenames in os.walk(root):
+              for fn in filenames:
+                  if "regress" in fn.lower():
+                      print("  file:", os.path.join(dirpath, fn).replace(root, "spanet"))
+          print()
+          try:
+              from spanet.dataset.types import RegressionInfo
+              print("RegressionInfo OK:", RegressionInfo._fields)
+          except Exception as e:
+              print("RegressionInfo import FAILED:", e)
+          try:
+              from spanet.network.prediction_selection import extract_prediction
+              print("extract_prediction OK")
+          except Exception as e:
+              print("extract_prediction FAILED:", e)
+          import subprocess
+          print()
+          print("--- regression hooks in the training module ---")
+          subprocess.run(["grep", "-rn", "regression", f"{root}/network/jet_reconstruction/jet_reconstruction_network.py"],
+                         check=False)
+          PYEOF
+
+          echo
+          echo "############ 5. TRAINED PAIRWISE CHECKPOINT ############"
+          ls -la /data/spatop/logs/ 2>/dev/null | head -20
+          echo "--- searching for pairwise checkpoints ---"
+          find /data/spatop/logs -name "*.ckpt" 2>/dev/null | head -20
+          python - <<'PYEOF'
+          import glob, torch
+          cands = sorted(glob.glob("/data/spatop/logs/**/*.ckpt", recursive=True))
+          print(f"{len(cands)} checkpoints found")
+          pair = [c for c in cands if "pairwise" in c.lower()]
+          print("pairwise checkpoints:", len(pair))
+          for c in pair[:6]:
+              print("  ", c)
+          if pair:
+              ck = torch.load(pair[0], map_location="cpu")
+              sd = ck.get("state_dict", ck)
+              print()
+              print("checkpoint:", pair[0])
+              print("epoch:", ck.get("epoch"), " global_step:", ck.get("global_step"))
+              heads = sorted({k.split(".")[0] for k in sd})
+              print("top-level modules:", heads)
+              reg = [k for k in sd if "regress" in k.lower()]
+              print("regression tensors in checkpoint:", len(reg))
+              for k in reg[:10]:
+                  print("   ", k, tuple(sd[k].shape))
+          PYEOF
+          echo "############ PROBE DONE ############"
+        resources:
+          limits:
+            cpu: "3"
+            memory: 24Gi
+          requests:
+            cpu: "2"
+            memory: 16Gi
+        volumeMounts:
+        - mountPath: /data
+          name: spatopvol
+      volumes:
+      - name: spatopvol
+        persistentVolumeClaim:
+          claimName: traindatavol

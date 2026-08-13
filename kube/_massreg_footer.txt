@@ -1,0 +1,151 @@
+
+          echo "########## 2. LOCATE CONFIG AND CHECKPOINT ##########"
+          python - <<'PYEOF'
+          import glob, json, os
+
+          cfg_path = "/data/spatop/options_files/v11/spatop_v11_pairwise1GPU.json"
+          if not os.path.exists(cfg_path):
+              cfg_path = "/data/spatop/options_files/v11/spatop_v11_full1GPU.json"
+          cfg = json.load(open(cfg_path))
+          print("base config:", cfg_path)
+          for k in ("training_file", "validation_file", "testing_file", "event_info_file"):
+              print(f"  {k:18} = {cfg.get(k)}")
+
+          ckpts = sorted(glob.glob("/data/spatop/logs/**/*.ckpt", recursive=True))
+          pair = [c for c in ckpts if "pairwise" in c.lower()]
+          if not pair:
+              raise SystemExit("FATAL: no pairwise checkpoint found under /data/spatop/logs")
+          best = [c for c in pair if "best" in os.path.basename(c).lower()]
+          chosen = (best or pair)[0]
+          print(f"{len(pair)} pairwise checkpoints, using: {chosen}")
+
+          with open("/data/spatop/massreg/paths.json", "w") as f:
+              json.dump({"config": cfg_path, "checkpoint": chosen,
+                         "event_info_file": cfg["event_info_file"],
+                         "training_file": cfg["training_file"],
+                         "validation_file": cfg["validation_file"],
+                         "testing_file": cfg.get("testing_file")}, f, indent=2)
+          PYEOF
+
+          PATHS=/data/spatop/massreg/paths.json
+          EVENT_IN=$(python -c "import json;print(json.load(open('$PATHS'))['event_info_file'])")
+          EVENT_OUT=/data/spatop/massreg/tt_hadronic_regression.yaml
+
+          echo "########## 3. EVENT FILE WITH REGRESSIONS ##########"
+          python $SCRIPTS/add_regression_block.py "$EVENT_IN" "$EVENT_OUT" --targets pt --type gaussian
+
+          echo "########## 4. ADD REGRESSION TARGETS TO THE H5 ##########"
+          # Additive and idempotent. SPANet ignores REGRESSIONS unless the event
+          # file declares it, so the augmented files stay valid for every
+          # existing training.
+          python - <<'PYEOF' > /data/spatop/massreg/files.txt
+          import json
+          p = json.load(open("/data/spatop/massreg/paths.json"))
+          for k in ("training_file", "validation_file", "testing_file"):
+              if p.get(k):
+                  print(p[k])
+          PYEOF
+          # The trailing -- matters: xargs appends the file list, and without it
+          # argparse swallows the filenames into --targets (nargs=+).
+          xargs -a /data/spatop/massreg/files.txt python $SCRIPTS/add_regression_targets.py --targets pt --
+
+          echo "########## 5. PREFLIGHT (no GPU work until this passes) ##########"
+          python - <<'PYEOF'
+          import json
+          import numpy as np
+          import h5py, torch
+          from spanet.dataset.event_info import EventInfo
+          from spanet.dataset.types import SpecialKey
+
+          paths = json.load(open("/data/spatop/massreg/paths.json"))
+          info = EventInfo.read_from_yaml("/data/spatop/massreg/tt_hadronic_regression.yaml")
+
+          wanted = []
+          for particle in info.event_particles:
+              for t in info.regressions[particle][SpecialKey.Particle]:
+                  wanted.append(f"REGRESSIONS/{particle}/PARTICLE/{t.name}")
+          print(f"parser produced {len(wanted)} regression keys")
+          if not wanted:
+              raise SystemExit("FATAL: event file declares no regressions")
+
+          problems = []
+          for key in ("training_file", "validation_file"):
+              with h5py.File(paths[key], "r") as f:
+                  for w in wanted:
+                      if w not in f:
+                          problems.append(f"{key}: {w} missing")
+                          continue
+                      v = f[w][:]
+                      if not np.isfinite(v).any():
+                          problems.append(f"{key}: {w} all NaN")
+
+          sd = torch.load(paths["checkpoint"], map_location="cpu")["state_dict"]
+          reg_keys = [k for k in sd if "regression" in k.lower()]
+          print(f"checkpoint tensors: {len(sd)}, regression tensors: {len(reg_keys)}")
+
+          for p in problems:
+              print("PROBLEM:", p)
+          if problems:
+              raise SystemExit(f"FATAL: preflight found {len(problems)} problems")
+          print("preflight OK")
+          PYEOF
+
+          echo "########## 6. REGRESSION CONFIG ##########"
+          CFG=/data/spatop/massreg/spatop_massreg_pt.json
+          python - <<'PYEOF'
+          import json
+          paths = json.load(open("/data/spatop/massreg/paths.json"))
+          cfg = json.load(open(paths["config"]))
+          cfg.update({
+              "event_info_file": "/data/spatop/massreg/tt_hadronic_regression.yaml",
+              # Turn the regression term on. It is gated on > 0 in
+              # jet_reconstruction_training.py, which is why it was inert until now.
+              "regression_loss_scale": 1.0,
+              "num_regression_layers": 3,
+              "num_dataloader_workers": 0,
+              "learning_rate": 1e-3,
+              "epochs": 15,
+          })
+          json.dump(cfg, open("/data/spatop/massreg/spatop_massreg_pt.json", "w"), indent=4)
+          print("regression config written")
+          for k in ("regression_loss_scale", "num_regression_layers", "learning_rate", "epochs"):
+              print(f"  {k} = {cfg[k]}")
+          PYEOF
+
+          echo "########## 7. FINE-TUNE THE HEAD ##########"
+          # -sf loads weights only, strict=False, so the new regression
+          # parameters appear as missing keys and initialise fresh.
+          # -fsf freezes everything that came from the checkpoint, so this
+          # trains the regression head alone and cannot damage the assignment
+          # performance we already measured.
+          CKPT=$(python -c "import json;print(json.load(open('$PATHS'))['checkpoint'])")
+          python -m spanet.train \
+            -of $CFG \
+            -sf "$CKPT" \
+            -fsf \
+            -l /data/spatop/logs/ \
+            -n spatop_massreg_pt_output
+
+          echo "########## DONE ##########"
+        resources:
+          limits:
+            cpu: "16"
+            memory: 64Gi
+            nvidia.com/gpu: "1"
+          requests:
+            cpu: "8"
+            memory: 32Gi
+            nvidia.com/gpu: "1"
+        volumeMounts:
+        - mountPath: /dev/shm
+          name: dshm
+        - mountPath: /data
+          name: spatopvol
+      volumes:
+      - name: dshm
+        emptyDir:
+          medium: Memory
+          sizeLimit: 8Gi
+      - name: spatopvol
+        persistentVolumeClaim:
+          claimName: traindatavol
