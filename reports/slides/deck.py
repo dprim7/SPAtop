@@ -166,6 +166,16 @@ def _content_slide(s, logo, num, total, footer):
         body += ("<div class='eqs'>"
                  + "".join(f"<div class='eq'>{e}</div>" for e in eqs)
                  + "</div>")
+    if s.get("minitable"):
+        mt = s["minitable"]
+        head = "".join(f"<th>{_rich(c)}</th>" for c in mt["head"])
+        rows = "".join("<tr>" + "".join(f"<td>{_rich(c)}</td>" for c in r)
+                       + "</tr>" for r in mt["rows"])
+        lab = (f"<span class='co-label'>{_rich(mt['label'])}</span>"
+               if mt.get("label") else "")
+        body += (f"<aside class='callout mini'>{lab}"
+                 f"<table class='mt'><thead><tr>{head}</tr></thead>"
+                 f"<tbody>{rows}</tbody></table></aside>")
     if s.get("callout"):
         c = s["callout"]
         c = c if isinstance(c, dict) else {"text": c}
@@ -174,8 +184,8 @@ def _content_slide(s, logo, num, total, footer):
         body += f"<aside class='callout'>{lab}<p>{_rich(c['text'])}</p></aside>"
     layout = "split" if (fig and s.get("bullets")) else "stack"
     return f"""<section class="slide">
-  {_corner_marks()}
-  <header><h2>{_rich(s['title'])}</h2><div class="rule"></div></header>
+  <header><div class="head-row"><h2>{_rich(s['title'])}</h2>{_corner_marks()}</div>
+    <div class="rule"></div></header>
   <div class="body {layout}">{body}</div>
   <footer><span class="f-txt">{_esc(footer)}</span><span class="f-num">{num}</span></footer>
 </section>"""
@@ -186,8 +196,8 @@ def _decisions_slide(s, logo, num, total, footer):
         f"<li><span class='dn'>{i+1}</span><span class='dt'>{_rich(d)}</span></li>"
         for i, d in enumerate(s["decisions"]))
     return f"""<section class="slide">
-  {_corner_marks()}
-  <header><h2>{_rich(s['title'])}</h2><div class="rule"></div></header>
+  <header><div class="head-row"><h2>{_rich(s['title'])}</h2>{_corner_marks()}</div>
+    <div class="rule"></div></header>
   <div class="body stack"><ol class="dec">{items}</ol></div>
   <footer><span class="f-txt">{_esc(footer)}</span><span class="f-num">{num}</span></footer>
 </section>"""
@@ -201,9 +211,9 @@ html,body{{margin:0;padding:0;background:#20242b;
 .slide{{position:relative;width:1280px;height:720px;flex:0 0 auto;background:{PAPER};
   overflow:hidden;box-shadow:0 6px 26px rgba(0,0,0,.34);padding:58px 72px 0;}}
 .slide header{{margin-bottom:26px;}}
-.marks{{position:absolute;top:26px;display:flex;align-items:center;gap:14px;z-index:2;}}
-.marks.right{{right:72px;}}
-.marks.left{{left:72px;}}
+.head-row{{display:flex;align-items:flex-start;justify-content:space-between;
+  gap:40px;}}
+.marks{{display:flex;align-items:center;gap:14px;flex:0 0 auto;padding-top:2px;}}
 .c-logo{{width:auto;opacity:.94;}}
 .marks img[alt=CMS]{{height:60px;}}
 .marks img[alt=UCSD]{{height:38px;}}
@@ -211,7 +221,7 @@ html,body{{margin:0;padding:0;background:#20242b;
   border:1px dashed #B9C3CE;color:#9AA6B4;border-radius:3px;
   font-size:11px;letter-spacing:.09em;padding:0 9px;height:26px;}}
 .t-logo.ph{{height:52px;font-size:15px;padding:0 20px;border-color:#5E7A9A;color:#9FB4CC;}}
-.slide h2{{max-width:820px;font-size:40px;line-height:1.14;letter-spacing:-.02em;font-weight:700;
+.slide h2{{flex:1 1 auto;min-width:0;font-size:40px;line-height:1.14;letter-spacing:-.02em;font-weight:700;
   color:{NAVY};margin:0;max-width:1040px;text-wrap:balance;}}
 .rule{{width:104px;height:5px;background:{GOLD};margin-top:18px;}}
 .body{{height:474px;display:flex;gap:44px;}}
@@ -232,6 +242,16 @@ html,body{{margin:0;padding:0;background:#20242b;
 .eq .v{{color:{BLUE};font-weight:600;}}
 .eq sub{{font-size:.62em;}} .eq sup{{font-size:.62em;}}
 .eq i{{font-family:"Iowan Old Style",Georgia,serif;}}
+.callout.mini{{padding:13px 22px 15px;}}
+.mt{{width:100%;border-collapse:collapse;}}
+.mt th{{background:none;color:{BLUE};text-transform:none;letter-spacing:.02em;
+  font-size:15px;padding:2px 14px 6px 0;border-bottom:1px solid #C9D8E4;
+  text-align:left;}}
+.mt td{{font-size:18px;padding:4px 14px 4px 0;border:none;background:none;
+  font-family:ui-monospace,Menlo,Consolas,monospace;}}
+.mt td:first-child{{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;
+  color:{NAVY};width:34%;}}
+.mt tbody tr:nth-child(even) td{{background:none;}}
 .callout{{margin-top:auto;background:#EEF4F9;border-left:5px solid {BLUE};
   border-radius:0 4px 4px 0;padding:15px 22px;max-width:1050px;}}
 .co-label{{display:block;font-size:13px;letter-spacing:.13em;text-transform:uppercase;

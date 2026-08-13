@@ -78,15 +78,19 @@ DECK = {
             "bullets": [
                 "FB is already ~100% findable, so **nothing to gain**",
                 "Downweighted FR classes (67% of events) collapse",
+                "Legacy row is **confounded**: it also sets reweighting",
             ],
-            "callout": {
-                "label": "Legacy config vs vanilla SPAtop",
-                "text": "Legacy is the original SPANet-paper hadronic-t̄t recipe: "
-                        "`balance_particles: true` (so its row is confounded with the "
-                        "row above), `dropout 0`, `gradient_clip 0`, `lr 1.5e-3`, "
-                        "4 attention heads and 6 encoder layers. Vanilla SPAtop uses "
-                        "our swept values: dropout 0.30, clip 10, lr 7.3e-4, 8 heads, "
-                        "4 encoder layers, and no reweighting.",
+            "minitable": {
+                "label": "Where the legacy recipe differs",
+                "head": ["", "best vanilla (g2vc1w2g)", "legacy (SPANet paper)"],
+                "rows": [
+                    ["learning rate", "4.7e-4", "1.5e-3"],
+                    ["dropout", "0.24", "0"],
+                    ["gradient clip", "10", "0"],
+                    ["attention heads", "8", "4"],
+                    ["encoder layers", "4", "6"],
+                    ["balance_particles", "off", "on"],
+                ],
             },
             "notes": "All numbers are the percentage of true tops of that topology whose full "
                      "assignment is exactly correct, slot-order-free. Event purity is the "
@@ -101,7 +105,12 @@ DECK = {
                      "If the group still wants class balance, try sqrt or capped weights with "
                      "rescaled l2.\n\n"
                      "The legacy config also plateaued at epoch 11 (lr 1.5e-3, zero dropout). A "
-                     "clean architecture-only reference run is a one-line change if wanted.",
+                     "clean architecture-only reference run is a one-line change if wanted.\n\n"
+                     "Legacy numbers verified live against "
+                     "Alexanders101/SPANet options_files/full_hadronic_ttbar/"
+                     "full_training.json. Vanilla column is the g2vc1w2g sweep winner; "
+                     "heads, encoder layers, clip and balance_particles come from the "
+                     "sweep base config, which every trial shared.",
         },
         {
             "title": "Correction: our earlier per-topology numbers were slot-ordered",
