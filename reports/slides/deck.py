@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Daniel's slide deck generator — UCSD-themed 16:9 HTML slides.
+"""Daniel's slide deck generator: UCSD-themed 16:9 HTML slides.
 
 Theme is code, content is data: a deck is a list of slide dicts (see
 `working_meeting.py` for an example). Renders a self-contained HTML file
@@ -19,6 +19,8 @@ House rules this template enforces (the point of having a standard):
   4. DETAIL LIVES IN `notes`. Notes never render on the slide; they print in
      the speaker-notes appendix (--notes) and are there for the Q&A.
   5. Numbers are tabular; the row that wins is highlighted, never explained.
+  6. NO EM DASHES, anywhere, on slides or in notes. Use a colon, a comma,
+     a full stop, or parentheses. This is a standing preference.
 
 BRAND ASSETS (drop-in, never fabricated):
   assets/ucsd-logo.png   <- official mark from brand.ucsd.edu
@@ -157,6 +159,12 @@ def _content_slide(s, logo, num, total, footer):
     body += _bullets_html(s.get("bullets"))
     if s.get("kicker"):
         body += f"<p class='kicker'>{_rich(s['kicker'])}</p>"
+    if s.get("callout"):
+        c = s["callout"]
+        c = c if isinstance(c, dict) else {"text": c}
+        lab = (f"<span class='co-label'>{_rich(c['label'])}</span>"
+               if c.get("label") else "")
+        body += f"<aside class='callout'>{lab}<p>{_rich(c['text'])}</p></aside>"
     layout = "split" if (fig and s.get("bullets")) else "stack"
     return f"""<section class="slide">
   {_corner_marks()}
@@ -209,6 +217,11 @@ html,body{{margin:0;padding:0;background:#20242b;
 .bul li::before{{content:"";position:absolute;left:0;top:14px;width:11px;height:3px;background:{GOLD};}}
 .bul li b{{color:{NAVY};font-weight:700;}}
 .kicker{{margin:6px 0 0;font-size:23px;color:{BLUE};font-weight:600;max-width:1000px;}}
+.callout{{margin-top:auto;background:#EEF4F9;border-left:5px solid {BLUE};
+  border-radius:0 4px 4px 0;padding:15px 22px;max-width:1050px;}}
+.co-label{{display:block;font-size:13px;letter-spacing:.13em;text-transform:uppercase;
+  color:{BLUE};font-weight:700;margin-bottom:5px;}}
+.callout p{{margin:0;font-size:20px;line-height:1.42;color:{INK};max-width:none;}}
 .fig{{margin:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
   height:100%;width:100%;}}
 .fig img{{max-width:100%;max-height:412px;object-fit:contain;}}
@@ -302,7 +315,7 @@ def render(deck, out_path, notes_path=None):
 
     if notes_path:
         with open(notes_path, "w") as f:
-            f.write(f"# Speaker notes — {deck['title']}\n\n")
+            f.write(f"# Speaker notes: {deck['title']}\n\n")
             for title, note in notes:
                 f.write(f"## {title}\n\n{note}\n\n")
     return out_path
