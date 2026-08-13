@@ -1,0 +1,225 @@
+# Topology loss-ratio study (meeting request 2026-08-11).
+#
+# Three configurations of FR : SRqq : FB loss weighting, all on the sweep-winner
+# blocks config (gs8pex8v) and the fixed dataset, everything else identical:
+#
+#   1 : 1 : 1   -- ALREADY RUN. The default total_loss.mean() averages over the
+#                  per-target losses and each topology owns exactly 2 of the 6
+#                  targets, so the existing gs8pex8v run IS the equal-weight arm.
+#                  No new job needed; compare against W&B run gs8pex8v.
+#   2 : 1 : 1   -- dp-spatop-train-wt211  (this file)
+#   3 : 2 : 1   -- dp-spatop-train-wt321  (this file)
+#
+# Implemented with the new particle_loss_weights option
+# (dprim7/SPANet@feat/particle-loss-weights), NOT balance_particles: the latter
+# weights by topology-PRESENCE class with inverse-effective-frequency, which on
+# this 6-target event file spans 22,193x across classes and scales the mean loss
+# to 0.0009 (measured) -- that is why the earlier balance_particles arm
+# collapsed. particle_loss_weights renormalizes to mean 1.0, so the loss scale
+# and the effective l2_penalty are untouched and the ratio is the only variable.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: dp-spatop-train-wt211
+  namespace: axol1tl
+  labels:
+    jobgroup: spatop-job-train
+spec:
+  backoffLimit: 5
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels:
+        job-name: dp-spatop-train-wt211
+    spec:
+      restartPolicy: Never
+      securityContext:
+        runAsUser: 0
+        fsGroup: 0
+      containers:
+      - name: training
+        image: gitlab-registry.nrp-nautilus.io/mquinnan/top-spanet:spatop-container
+        env:
+        - name: WANDB_API_KEY
+          valueFrom: {secretKeyRef: {name: dp-wandb, key: api-key, optional: true}}
+        - name: WANDB_PROJECT
+          value: spatop
+        - name: RUN_NAME
+          value: spatop_wt211_output
+        - name: WEIGHTS
+          value: "FRt:2,SRqqt:1,FBt:1"
+        - name: TAG
+          value: wt211
+        command:
+        - /bin/bash
+        - -c
+        - |
+          set -e
+          CFG=/data/spatop/options_files/sweep_fixed_dp/config_gs8pex8v_${TAG}.json
+          python - <<PYEOF
+          import json
+          with open("/data/spatop/options_files/sweep_fixed_dp/config_gs8pex8v.json") as f:
+              cfg = json.load(f)
+          cfg["particle_loss_weights"] = "${WEIGHTS}"   # the ONLY delta
+          assert not cfg.get("balance_particles"), "ratio study must not stack with balance_particles"
+          with open("${CFG}", "w") as f:
+              json.dump(cfg, f, indent=4)
+          print("config written; weights =", cfg["particle_loss_weights"])
+          PYEOF
+
+          pip install git+https://github.com/dprim7/SPANet.git@feat/particle-loss-weights
+          pip install tensorboard rich wandb
+
+          python - <<'PYEOF'
+          import os, re, spanet
+          f = os.path.join(os.path.dirname(spanet.__file__), "train.py")
+          src = open(f).read()
+          old = "    logger = TensorBoardLogger(save_dir=log_dir, name=name)"
+          new = (
+              "    if __import__('os').environ.get('WANDB_API_KEY'):\n"
+              "        from pytorch_lightning.loggers import WandbLogger\n"
+              "        logger = WandbLogger(project=__import__('os').environ.get('WANDB_PROJECT', 'spatop'),\n"
+              "                             name=name, save_dir=log_dir)\n"
+              "    else:\n"
+              "        logger = TensorBoardLogger(save_dir=log_dir, name=name)"
+          )
+          assert old in src, "logger line not found"
+          src = src.replace(old, new)
+          src, _ = re.subn(r"trainer\.logger\.log_dir", "(trainer.logger.log_dir or log_dir)", src)
+          open(f, "w").write(src)
+          print("logger patched")
+          PYEOF
+
+          mkdir -p /scratch/logs
+          ( while true; do
+              sleep 300
+              rsync -a /scratch/logs/ /data/spatop/logs/ 2>/dev/null \
+                || cp -ru /scratch/logs/* /data/spatop/logs/ 2>/dev/null || true
+            done ) &
+          SYNC_PID=$!
+
+          echo "Starting training: $RUN_NAME (weights $WEIGHTS)"
+          python -m spanet.train -of $CFG -l /scratch/logs/ -n "$RUN_NAME"
+
+          kill $SYNC_PID 2>/dev/null || true
+          rsync -a /scratch/logs/ /data/spatop/logs/ 2>/dev/null \
+            || cp -ru /scratch/logs/* /data/spatop/logs/
+          echo "DONE"
+        resources:
+          limits:   {cpu: "4", memory: 16Gi, nvidia.com/a100: "1"}
+          requests: {cpu: "4", memory: 16Gi, nvidia.com/a100: "1"}
+        volumeMounts:
+        - {mountPath: /dev/shm, name: dshm}
+        - {mountPath: /data, name: spatopvol}
+        - {mountPath: /scratch, name: scratch}
+      volumes:
+      - name: dshm
+        emptyDir: {medium: Memory, sizeLimit: 8Gi}
+      - name: scratch
+        emptyDir: {sizeLimit: 150Gi}
+      - name: spatopvol
+        persistentVolumeClaim: {claimName: traindatavol}
+
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: dp-spatop-train-wt321
+  namespace: axol1tl
+  labels:
+    jobgroup: spatop-job-train
+spec:
+  backoffLimit: 5
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels:
+        job-name: dp-spatop-train-wt321
+    spec:
+      restartPolicy: Never
+      securityContext:
+        runAsUser: 0
+        fsGroup: 0
+      containers:
+      - name: training
+        image: gitlab-registry.nrp-nautilus.io/mquinnan/top-spanet:spatop-container
+        env:
+        - name: WANDB_API_KEY
+          valueFrom: {secretKeyRef: {name: dp-wandb, key: api-key, optional: true}}
+        - name: WANDB_PROJECT
+          value: spatop
+        - name: RUN_NAME
+          value: spatop_wt321_output
+        - name: WEIGHTS
+          value: "FRt:3,SRqqt:2,FBt:1"
+        - name: TAG
+          value: wt321
+        command:
+        - /bin/bash
+        - -c
+        - |
+          set -e
+          CFG=/data/spatop/options_files/sweep_fixed_dp/config_gs8pex8v_${TAG}.json
+          python - <<PYEOF
+          import json
+          with open("/data/spatop/options_files/sweep_fixed_dp/config_gs8pex8v.json") as f:
+              cfg = json.load(f)
+          cfg["particle_loss_weights"] = "${WEIGHTS}"   # the ONLY delta
+          assert not cfg.get("balance_particles"), "ratio study must not stack with balance_particles"
+          with open("${CFG}", "w") as f:
+              json.dump(cfg, f, indent=4)
+          print("config written; weights =", cfg["particle_loss_weights"])
+          PYEOF
+
+          pip install git+https://github.com/dprim7/SPANet.git@feat/particle-loss-weights
+          pip install tensorboard rich wandb
+
+          python - <<'PYEOF'
+          import os, re, spanet
+          f = os.path.join(os.path.dirname(spanet.__file__), "train.py")
+          src = open(f).read()
+          old = "    logger = TensorBoardLogger(save_dir=log_dir, name=name)"
+          new = (
+              "    if __import__('os').environ.get('WANDB_API_KEY'):\n"
+              "        from pytorch_lightning.loggers import WandbLogger\n"
+              "        logger = WandbLogger(project=__import__('os').environ.get('WANDB_PROJECT', 'spatop'),\n"
+              "                             name=name, save_dir=log_dir)\n"
+              "    else:\n"
+              "        logger = TensorBoardLogger(save_dir=log_dir, name=name)"
+          )
+          assert old in src, "logger line not found"
+          src = src.replace(old, new)
+          src, _ = re.subn(r"trainer\.logger\.log_dir", "(trainer.logger.log_dir or log_dir)", src)
+          open(f, "w").write(src)
+          print("logger patched")
+          PYEOF
+
+          mkdir -p /scratch/logs
+          ( while true; do
+              sleep 300
+              rsync -a /scratch/logs/ /data/spatop/logs/ 2>/dev/null \
+                || cp -ru /scratch/logs/* /data/spatop/logs/ 2>/dev/null || true
+            done ) &
+          SYNC_PID=$!
+
+          echo "Starting training: $RUN_NAME (weights $WEIGHTS)"
+          python -m spanet.train -of $CFG -l /scratch/logs/ -n "$RUN_NAME"
+
+          kill $SYNC_PID 2>/dev/null || true
+          rsync -a /scratch/logs/ /data/spatop/logs/ 2>/dev/null \
+            || cp -ru /scratch/logs/* /data/spatop/logs/
+          echo "DONE"
+        resources:
+          limits:   {cpu: "4", memory: 16Gi, nvidia.com/a100: "1"}
+          requests: {cpu: "4", memory: 16Gi, nvidia.com/a100: "1"}
+        volumeMounts:
+        - {mountPath: /dev/shm, name: dshm}
+        - {mountPath: /data, name: spatopvol}
+        - {mountPath: /scratch, name: scratch}
+      volumes:
+      - name: dshm
+        emptyDir: {medium: Memory, sizeLimit: 8Gi}
+      - name: scratch
+        emptyDir: {sizeLimit: 150Gi}
+      - name: spatopvol
+        persistentVolumeClaim: {claimName: traindatavol}

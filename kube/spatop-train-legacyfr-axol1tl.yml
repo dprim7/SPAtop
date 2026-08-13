@@ -1,0 +1,377 @@
+# "Properly legacy" SPANet: the ORIGINAL paper's setup is fully-resolved ttbar
+# only, so a faithful legacy reference must use a RESOLVED-ONLY event file --
+# unlike our earlier og-ref arm, which ported the paper hyperparameters onto the
+# multi-topology v11 event file and is therefore not a legacy comparison.
+#
+# Event file: the upstream resolved-only lineage
+# (tcoulvert/SPAtop kube/v7/spanet_config/tt_hadronic_v7_fr.yaml) -- Jets only,
+# targets FRt1/FRt2. Written to the volume by the job below.
+# Hyperparameters: Alexanders101/SPANet options_files/full_hadronic_ttbar/
+# full_training.json (hidden 64, embed 16 / pos 32, 10 embedding + 6 encoder
+# layers, 4 heads, lr 1.5e-3, dropout 0, gradient_clip 0, batch 2048).
+#
+# balance_particles is kept TRUE, as the paper config has it. That is faithful
+# AND now understood: on a resolved-only event file it produces just 3 presence
+# classes spanning 11x with mean weight 0.35 (measured), versus 27 classes
+# spanning 22,193x with mean 0.0009 on our 6-target file. The flag is benign in
+# the world it was designed for.
+#
+# Two arms:
+#   dp-spatop-train-legacyfr-fixed : fixed dataset (864k events)
+#   dp-spatop-train-legacyfr-v6    : delphes v6 (15.36M events). Resolved-only is
+#     especially apt here: v6's FR labels are validated good (they doubled FR
+#     performance) while its SRqq labels are decoder-evicted and unusable, so an
+#     FR-only model sidesteps the broken part of that dataset entirely.
+#
+# Deviations from the paper config, both deliberate and documented:
+#   epochs 50 (paper 500) -- matched to every other arm in the comparison
+#   num_dataloader_workers 0 (paper 16) -- cluster fork-worker deadlock fix
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: dp-spatop-train-legacyfr-fixed
+  namespace: axol1tl
+  labels:
+    jobgroup: spatop-job-train
+spec:
+  backoffLimit: 5
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels:
+        job-name: dp-spatop-train-legacyfr-fixed
+    spec:
+      restartPolicy: Never
+      securityContext:
+        runAsUser: 0
+        fsGroup: 0
+      containers:
+      - name: training
+        image: gitlab-registry.nrp-nautilus.io/mquinnan/top-spanet:spatop-container
+        env:
+        - name: WANDB_API_KEY
+          valueFrom: {secretKeyRef: {name: dp-wandb, key: api-key, optional: true}}
+        - name: WANDB_PROJECT
+          value: spatop
+        - name: RUN_NAME
+          value: spatop_legacyfr_fixed_output
+        - name: TRAIN_FILE
+          value: /data/spatop/tpm70_wpm30_FB350_fixed/all_merged.h5
+        - name: TAG
+          value: fixed
+        command: &legacy_cmd
+        - /bin/bash
+        - -c
+        - |
+          set -e
+          EVT=/data/spatop/event_files/v11/tt_hadronic_fr_only.yaml
+          CFG=/data/spatop/options_files/v11/spatop_legacyfr_${TAG}.json
+
+          # resolved-only event file (upstream v7 FR lineage)
+          mkdir -p /data/spatop/event_files/v11
+          cat > $EVT <<'YEOF'
+          INPUTS:
+            SEQUENTIAL:
+              Jets:
+                pt: log_normalize
+                eta: normalize
+                sinphi: none
+                cosphi: none
+                btag: none
+                mass: normalize
+            GLOBAL:
+
+          EVENT:
+            FRt1:
+              - b: Jets
+              - q1: Jets
+              - q2: Jets
+            FRt2:
+              - b: Jets
+              - q1: Jets
+              - q2: Jets
+
+          PERMUTATIONS:
+              EVENT:
+                - [[FRt1, FRt2]]
+              FRt1:
+                - [ q1, q2 ]
+              FRt2:
+                - [ q1, q2 ]
+
+          REGRESSIONS:
+
+          CLASSIFICATIONS:
+          YEOF
+          sed -i 's/^          //' $EVT
+          echo "--- event file:"; cat $EVT
+
+          python - <<PYEOF
+          import json
+          cfg = {
+              # --- OG SPANet paper architecture, verbatim ---
+              "hidden_dim": 64, "transformer_dim": 64,
+              "initial_embedding_dim": 16, "position_embedding_dim": 32,
+              "num_embedding_layers": 10, "num_encoder_layers": 6,
+              "num_branch_embedding_layers": 3, "num_branch_encoder_layers": 3,
+              "num_jet_embedding_layers": 0, "num_jet_encoder_layers": 2,
+              "num_detector_layers": 2, "num_regression_layers": 3,
+              "num_classification_layers": 3,
+              "split_symmetric_attention": True, "num_attention_heads": 4,
+              "transformer_activation": "gelu", "linear_block_type": "GRU",
+              "transformer_type": "Gated", "linear_activation": "gelu",
+              "normalization": "LayerNorm", "masking": "Filling",
+              "skip_connections": True, "initial_embedding_skip_connections": True,
+              # --- OG training recipe, verbatim (incl. balance_particles) ---
+              "normalize_features": True, "limit_to_num_jets": 0,
+              "balance_jets": False, "partial_events": True,
+              "balance_particles": True,
+              "dataset_limit": 1.0, "train_validation_split": 0.95,
+              "batch_size": 2048, "mask_sequence_vectors": True,
+              "combine_pair_loss": "min", "optimizer": "AdamW",
+              "focal_gamma": 0.0, "learning_rate": 0.0015,
+              "learning_rate_cycles": 1, "learning_rate_warmup_epochs": 1.0,
+              "assignment_loss_scale": 1.0, "kl_loss_scale": 0.0,
+              "regression_loss_scale": 0.0, "classification_loss_scale": 0.0,
+              "l2_penalty": 0.0002, "gradient_clip": 0.0, "dropout": 0.0,
+              "num_gpu": 1, "verbose_output": True,
+              # --- our setup / documented deviations ---
+              "event_info_file": "${EVT}",
+              "training_file": "${TRAIN_FILE}",
+              "detection_loss_scale": 1.0,
+              "epochs": 50,
+              "num_dataloader_workers": 0,
+          }
+          with open("${CFG}", "w") as f:
+              json.dump(cfg, f, indent=4)
+          print("config written for ${TAG}")
+          PYEOF
+
+          pip install git+https://github.com/billy000400/SPANet@maad_dev
+          pip install tensorboard rich wandb
+
+          python - <<'PYEOF'
+          import os, re, spanet
+          f = os.path.join(os.path.dirname(spanet.__file__), "train.py")
+          src = open(f).read()
+          old = "    logger = TensorBoardLogger(save_dir=log_dir, name=name)"
+          new = (
+              "    if __import__('os').environ.get('WANDB_API_KEY'):\n"
+              "        from pytorch_lightning.loggers import WandbLogger\n"
+              "        logger = WandbLogger(project=__import__('os').environ.get('WANDB_PROJECT', 'spatop'),\n"
+              "                             name=name, save_dir=log_dir)\n"
+              "    else:\n"
+              "        logger = TensorBoardLogger(save_dir=log_dir, name=name)"
+          )
+          assert old in src, "logger line not found"
+          src = src.replace(old, new)
+          src, _ = re.subn(r"trainer\.logger\.log_dir", "(trainer.logger.log_dir or log_dir)", src)
+          open(f, "w").write(src)
+          print("logger patched")
+          PYEOF
+
+          mkdir -p /scratch/logs
+          ( while true; do
+              sleep 300
+              rsync -a /scratch/logs/ /data/spatop/logs/ 2>/dev/null \
+                || cp -ru /scratch/logs/* /data/spatop/logs/ 2>/dev/null || true
+            done ) &
+          SYNC_PID=$!
+
+          echo "Starting training: $RUN_NAME on $TRAIN_FILE"
+          python -m spanet.train -of $CFG -l /scratch/logs/ -n "$RUN_NAME"
+
+          kill $SYNC_PID 2>/dev/null || true
+          rsync -a /scratch/logs/ /data/spatop/logs/ 2>/dev/null \
+            || cp -ru /scratch/logs/* /data/spatop/logs/
+          echo "DONE"
+        resources:
+          limits:   {cpu: "4", memory: 16Gi, nvidia.com/a100: "1"}
+          requests: {cpu: "4", memory: 16Gi, nvidia.com/a100: "1"}
+        volumeMounts:
+        - {mountPath: /dev/shm, name: dshm}
+        - {mountPath: /data, name: spatopvol}
+        - {mountPath: /scratch, name: scratch}
+      volumes:
+      - name: dshm
+        emptyDir: {medium: Memory, sizeLimit: 8Gi}
+      - name: scratch
+        emptyDir: {sizeLimit: 150Gi}
+      - name: spatopvol
+        persistentVolumeClaim: {claimName: traindatavol}
+
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: dp-spatop-train-legacyfr-v6
+  namespace: axol1tl
+  labels:
+    jobgroup: spatop-job-train
+spec:
+  backoffLimit: 5
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels:
+        job-name: dp-spatop-train-legacyfr-v6
+    spec:
+      restartPolicy: Never
+      securityContext:
+        runAsUser: 0
+        fsGroup: 0
+      containers:
+      - name: training
+        image: gitlab-registry.nrp-nautilus.io/mquinnan/top-spanet:spatop-container
+        env:
+        - name: WANDB_API_KEY
+          valueFrom: {secretKeyRef: {name: dp-wandb, key: api-key, optional: true}}
+        - name: WANDB_PROJECT
+          value: spatop
+        - name: RUN_NAME
+          value: spatop_legacyfr_v6_output
+        - name: TRAIN_FILE
+          value: /data/spatop/delphes_v6/tt_hadronic_training2k_clean.h5
+        - name: TAG
+          value: v6
+        command:
+        - /bin/bash
+        - -c
+        - |
+          set -e
+          EVT=/data/spatop/event_files/v11/tt_hadronic_fr_only.yaml
+          CFG=/data/spatop/options_files/v11/spatop_legacyfr_${TAG}.json
+
+          # resolved-only event file (upstream v7 FR lineage)
+          mkdir -p /data/spatop/event_files/v11
+          cat > $EVT <<'YEOF'
+          INPUTS:
+            SEQUENTIAL:
+              Jets:
+                pt: log_normalize
+                eta: normalize
+                sinphi: none
+                cosphi: none
+                btag: none
+                mass: normalize
+            GLOBAL:
+
+          EVENT:
+            FRt1:
+              - b: Jets
+              - q1: Jets
+              - q2: Jets
+            FRt2:
+              - b: Jets
+              - q1: Jets
+              - q2: Jets
+
+          PERMUTATIONS:
+              EVENT:
+                - [[FRt1, FRt2]]
+              FRt1:
+                - [ q1, q2 ]
+              FRt2:
+                - [ q1, q2 ]
+
+          REGRESSIONS:
+
+          CLASSIFICATIONS:
+          YEOF
+          sed -i 's/^          //' $EVT
+          echo "--- event file:"; cat $EVT
+
+          python - <<PYEOF
+          import json
+          cfg = {
+              # --- OG SPANet paper architecture, verbatim ---
+              "hidden_dim": 64, "transformer_dim": 64,
+              "initial_embedding_dim": 16, "position_embedding_dim": 32,
+              "num_embedding_layers": 10, "num_encoder_layers": 6,
+              "num_branch_embedding_layers": 3, "num_branch_encoder_layers": 3,
+              "num_jet_embedding_layers": 0, "num_jet_encoder_layers": 2,
+              "num_detector_layers": 2, "num_regression_layers": 3,
+              "num_classification_layers": 3,
+              "split_symmetric_attention": True, "num_attention_heads": 4,
+              "transformer_activation": "gelu", "linear_block_type": "GRU",
+              "transformer_type": "Gated", "linear_activation": "gelu",
+              "normalization": "LayerNorm", "masking": "Filling",
+              "skip_connections": True, "initial_embedding_skip_connections": True,
+              # --- OG training recipe, verbatim (incl. balance_particles) ---
+              "normalize_features": True, "limit_to_num_jets": 0,
+              "balance_jets": False, "partial_events": True,
+              "balance_particles": True,
+              "dataset_limit": 1.0, "train_validation_split": 0.95,
+              "batch_size": 2048, "mask_sequence_vectors": True,
+              "combine_pair_loss": "min", "optimizer": "AdamW",
+              "focal_gamma": 0.0, "learning_rate": 0.0015,
+              "learning_rate_cycles": 1, "learning_rate_warmup_epochs": 1.0,
+              "assignment_loss_scale": 1.0, "kl_loss_scale": 0.0,
+              "regression_loss_scale": 0.0, "classification_loss_scale": 0.0,
+              "l2_penalty": 0.0002, "gradient_clip": 0.0, "dropout": 0.0,
+              "num_gpu": 1, "verbose_output": True,
+              # --- our setup / documented deviations ---
+              "event_info_file": "${EVT}",
+              "training_file": "${TRAIN_FILE}",
+              "detection_loss_scale": 1.0,
+              "epochs": 50,
+              "num_dataloader_workers": 0,
+          }
+          with open("${CFG}", "w") as f:
+              json.dump(cfg, f, indent=4)
+          print("config written for ${TAG}")
+          PYEOF
+
+          pip install git+https://github.com/billy000400/SPANet@maad_dev
+          pip install tensorboard rich wandb
+
+          python - <<'PYEOF'
+          import os, re, spanet
+          f = os.path.join(os.path.dirname(spanet.__file__), "train.py")
+          src = open(f).read()
+          old = "    logger = TensorBoardLogger(save_dir=log_dir, name=name)"
+          new = (
+              "    if __import__('os').environ.get('WANDB_API_KEY'):\n"
+              "        from pytorch_lightning.loggers import WandbLogger\n"
+              "        logger = WandbLogger(project=__import__('os').environ.get('WANDB_PROJECT', 'spatop'),\n"
+              "                             name=name, save_dir=log_dir)\n"
+              "    else:\n"
+              "        logger = TensorBoardLogger(save_dir=log_dir, name=name)"
+          )
+          assert old in src, "logger line not found"
+          src = src.replace(old, new)
+          src, _ = re.subn(r"trainer\.logger\.log_dir", "(trainer.logger.log_dir or log_dir)", src)
+          open(f, "w").write(src)
+          print("logger patched")
+          PYEOF
+
+          mkdir -p /scratch/logs
+          ( while true; do
+              sleep 300
+              rsync -a /scratch/logs/ /data/spatop/logs/ 2>/dev/null \
+                || cp -ru /scratch/logs/* /data/spatop/logs/ 2>/dev/null || true
+            done ) &
+          SYNC_PID=$!
+
+          echo "Starting training: $RUN_NAME on $TRAIN_FILE"
+          python -m spanet.train -of $CFG -l /scratch/logs/ -n "$RUN_NAME"
+
+          kill $SYNC_PID 2>/dev/null || true
+          rsync -a /scratch/logs/ /data/spatop/logs/ 2>/dev/null \
+            || cp -ru /scratch/logs/* /data/spatop/logs/
+          echo "DONE"
+        resources:
+          # 64Gi: SPANet loads the full 10.9 GB v6 h5 into memory
+          limits:   {cpu: "8", memory: 64Gi, nvidia.com/a100: "1"}
+          requests: {cpu: "8", memory: 64Gi, nvidia.com/a100: "1"}
+        volumeMounts:
+        - {mountPath: /dev/shm, name: dshm}
+        - {mountPath: /data, name: spatopvol}
+        - {mountPath: /scratch, name: scratch}
+      volumes:
+      - name: dshm
+        emptyDir: {medium: Memory, sizeLimit: 8Gi}
+      - name: scratch
+        emptyDir: {sizeLimit: 150Gi}
+      - name: spatopvol
+        persistentVolumeClaim: {claimName: traindatavol}
