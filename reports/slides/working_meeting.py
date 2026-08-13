@@ -136,7 +136,7 @@ DECK = {
             "bullets": [
                 "Group curves: **+10 pts** resolved purity above 150 GeV",
                 "**3 to 6×** the high-pT efficiency (0.6 vs 0.05 at 300 GeV)",
-                "\\* SRqq needs a fix, see next slide",
+                "* SRqq needs a fix, see next slide",
             ],
             "notes": "v6 is the 15.36M-event delphes set on cms-ml, the only column-complete "
                      "large set available. We repaired two mechanical defects before use "
@@ -183,8 +183,8 @@ DECK = {
             },
             "bullets": [
                 "Pairwise leads narrowly at small data, **4× parameter efficiency**",
-                "Vanilla **wins outright** at 15.4 M events",
-                "Group pt-curves: architectures **equivalent** at scale",
+                "Vanilla **wins** at 15.4 M events",
+                "Standard analysis: architectures **equivalent** at scale",
             ],
             "notes": "Caveat to state: the vanilla arm ran with pairwise-tuned hyperparameters "
                      "and still won at scale, so the conclusion is conservative. One run per "
@@ -197,59 +197,21 @@ DECK = {
                      "data alone, so the bias is a crutch that data eventually replaces.",
         },
         {
-            "title": "Pairwise reaches a higher plateau, it does not get there sooner",
-            "figure": f"{P}/tt_convergence.png",
-            "bullets": [
-                "Same ceiling reached by **epoch 8 to 24**, then flat",
-                "Vanilla hits 90% of its own best **first** (epoch 5 vs 8)",
-                "The gap is a **plateau difference**, not a speed one",
-            ],
-            "notes": "Honest reading of this plot: it does NOT show faster convergence for "
-                     "pairwise. Vanilla reaches 90% of its own best at epoch 5, pairwise at "
-                     "epoch 8. What pairwise buys is a higher asymptote, 0.4293 against "
-                     "0.4124.\n\n"
-                     "Worth showing anyway because it rules out the obvious objection that the "
-                     "sweep winner was a lucky epoch: both curves are flat for tens of epochs "
-                     "around their best, so the 1.7-point separation is stable rather than "
-                     "noise.",
-        },
-        {
-            "title": "Group pt curves, t̄t: the two architectures track each other",
-            "figure": f"{P}/tt_ptcurves_slide.png",
-            "caption": "Group pipeline (dp_to_TopNumProb selection, ΔR matching). "
-                       "Top: resolved. Bottom: all categories.",
-            "notes": "Four models here: the fixed-data pair (light) and the v6 pair (dark). "
-                     "The point for the ttbar argument is that after the group's selection the "
-                     "vanilla and pairwise curves lie on top of each other at 15.4M events. The "
-                     "dataset axis moves the curves, the architecture axis does not.\n\n"
-                     "Resolved purity above 150 GeV: v6 pair around 0.55 to 0.62 against 0.45 "
-                     "to 0.52 for the fixed pair. Efficiency at 300 GeV: 0.6 against 0.05, "
-                     "which is the 3 to 6x high-pT gain from more data.",
-        },
-        {
-            "title": "We built the four-top chain end to end this cycle",
-            "bullets": [
-                "Card → MadGraph → Delphes → converter → gate → SPANet",
-                "Group converter used **unmodified** at `--n-tops 4`",
-                "15 M events generated: 750 shards, **zero failures**, ~6 h",
-                "**1.63 M train / 408 k test**, label gate PASS",
-            ],
-            "callout": {
-                "text": "Check physics of the four-top simulations (Tommy?)",
-            },
-            "notes": "The group's converter was already parameterised in n_tops with "
-                     "IntRange(2,4), so Tommy built for this. The only new artifacts are a "
-                     "one-line MadGraph process card and the four-top event yaml.\n\n"
-                     "Gate results at scale: zero structural defects across 3.06M labeled tops, "
-                     "double-booking 29.1% (better than our ttbar training set's 36%), and all "
-                     "label-physics windows reproduced (FR 94.3%, W 100.0%, SRqq 83.9%, FB "
-                     "85.4%). Acceptance is 13.6% from the >=12-jet cut.\n\n"
-                     "Cost model: MadGraph about 0.15 s per event steady state. 1M is an "
-                     "afternoon, 15M is an overnight run at 100 parallel shards.\n\n"
-                     "On the ask: keep it light in the room. The point is that these are new "
-                     "labels from a chain nobody else has reviewed, and the person best placed "
-                     "to sanity-check the physics is the author of the converter. Offer the "
-                     "files, do not assign work.",
+            "title": "After the standard selection the two t̄t architectures are equivalent",
+            "figure": f"{P}/pt_curves_2x2/SPAtop2x2_resolved.png",
+            "caption": "Resolved tops. Left: purity vs reconstructed pT. "
+                       "Right: efficiency vs generated pT.",
+            "notes": "Standard analysis means the SPAtop group's own pipeline, "
+                     "tcoulvert/SPAtop src/analysis: candidates are selected with "
+                     "dp_to_TopNumProb and matched to generator tops by deltaR. It is the "
+                     "selection an actual analysis would apply, as opposed to our exact-index "
+                     "match.\n\n"
+                     "Four models here: the fixed-data pair (light) and the v6 pair (dark). The "
+                     "point is that within each dataset the vanilla and pairwise curves lie on "
+                     "top of each other, while the dataset axis separates them cleanly. Purity "
+                     "above 150 GeV: v6 pair 0.55 to 0.62 against 0.45 to 0.52 for the fixed "
+                     "pair. Efficiency at 300 GeV: 0.6 against 0.05.\n\n"
+                     "All-category version is in backup.",
         },
         {
             "title": "In four tops, pairwise wins decisively",
@@ -275,31 +237,23 @@ DECK = {
                      "Those curves were computed on a 100k-event subsample for memory reasons.",
         },
         {
-            "title": "Four-top training curves: separated from the first epoch",
-            "figure": f"{P}/tttt_convergence.png",
-            "bullets": [
-                "Both plateau within **one or two epochs** at 1.63 M events",
-                "Pairwise sits **above vanilla throughout**, never crosses",
-                "Best: **0.4558** against 0.4046",
-            ],
-            "notes": "With 1.63M events an epoch is thousands of steps, so both arms are near "
-                     "their ceiling almost immediately. The separation is present from the "
-                     "start and never closes, which argues against the gap being a "
-                     "training-length artifact. It does not rule out a learning-rate artifact, "
-                     "which is what the proposed vanilla tuning scan would test.",
+            "title": "Standard selection confirms it: pairwise doubles resolved purity",
+            "figure": f"{P}/pt_curves_tttt/SPAtop_tttt15M_resolved.png",
+            "caption": "Four-top resolved tops, 100 k-event test subsample.",
+            "notes": "Purity roughly 2x vanilla across 50 to 300 GeV AND 2 to 3x the "
+                     "efficiency, so pairwise is strictly dominant with no purity/efficiency "
+                     "trade to argue about.\n\n"
+                     "This is the check that matters: in ttbar the same selection ERASED the "
+                     "exact-match gap. Here it confirms it.",
         },
         {
-            "title": "Group pt curves, four tops: pairwise dominates on both axes",
-            "figure": f"{P}/tttt_ptcurves_slide.png",
-            "caption": "Resolved, semi-resolved qq, boosted, all categories. "
-                       "100 k-event subsample of the test set.",
-            "notes": "Resolved is the headline panel: pairwise roughly doubles purity across "
-                     "50 to 300 GeV AND gives 2 to 3x the efficiency, so there is no "
-                     "purity/efficiency trade to argue about. Merged purity leads by 10 to 15 "
-                     "points below 400 GeV and converges above 500 GeV where events become "
-                     "boosted and easy.\n\n"
-                     "Unlike the ttbar case, where the group's selection erased the exact-match "
-                     "gap, here their own metric confirms it.",
+            "title": "The advantage holds across all four-top categories",
+            "figure": f"{P}/pt_curves_tttt/SPAtop_tttt15M_merged.png",
+            "caption": "All categories combined, four tops.",
+            "notes": "Purity leads by 10 to 15 points below 400 GeV and converges above about "
+                     "500 GeV, where events are boosted and the assignment is easy. That is the "
+                     "expected shape if the bias is helping with combinatorics.\n\n"
+                     "Semi-resolved and boosted panels are in backup.",
         },
         {
             "title": "And the advantage grows with data, the opposite of t̄t",
@@ -318,10 +272,7 @@ DECK = {
                 "&nbsp;·&nbsp; <span class='v'>24</span> (tttt) "
                 "&nbsp;·&nbsp; <span class='v'>720</span> (t̄tt̄tt̄t)",
             ],
-            "bullets": [
-                "Gap is **flat in jet count**, so not raw search space",
-                "It tracks the **number of tops**, not the search space",
-            ],
+
             "notes": "This is the money slide. In ttbar the bias is a sample-efficiency device "
                      "that more data replaces and eventually overtakes. In tttt the gap WIDENS "
                      "by 4x going from 10.9k to 1.63M training events: the pair-level physics "
@@ -336,7 +287,7 @@ DECK = {
             "bullets": [
                 "t̄t: **vanilla SPAtop**",
                 "t̄tt̄t, t̄tt̄tt̄t: **pairwise attention SPAtop**",
-                "**Improvements**: data first for t̄t, architecture first for tttt",
+                "**First order improvements**: data for t̄t, architecture for tttt",
             ],
             "notes": "Naming: the baseline arm is vanilla SPAtop, meaning Billy's SPAtop "
                      "adaptation of SPANet (billy000400/SPANet@maad_dev) without the pairwise "
@@ -372,6 +323,52 @@ DECK = {
                      "never tuned for four tops, so pairwise may well do better still.",
         },
         {"type": "divider", "title": "Backup"},
+        {
+            "title": "Training curves: a higher plateau, not a faster one",
+            "figure": f"{P}/convergence_both.png",
+            "caption": "Top: t̄t sweep winners. Bottom: four tops at 1.63 M events.",
+            "notes": "Honest reading of the t̄t panel: pairwise is NOT faster. Vanilla reaches "
+                     "90% of its own best at epoch 5, pairwise at epoch 8. What pairwise buys "
+                     "is a higher asymptote, 0.4293 against 0.4124. Both curves are flat for "
+                     "tens of epochs around their best, which rules out the objection that the "
+                     "sweep winner was a lucky epoch.\n\n"
+                     "Four-top panel: with 1.63M events an epoch is thousands of steps, so both "
+                     "arms are near their ceiling within one or two epochs. The separation is "
+                     "there from the start and never closes, which argues against a "
+                     "training-length artifact. It does not rule out a learning-rate artifact, "
+                     "which is what the proposed vanilla tuning scan would test.",
+        },
+        {
+            "title": "Four-top semi-resolved and boosted categories",
+            "figure": f"{P}/tttt_pt_qq_boosted.png",
+            "caption": "Top: semi-resolved qq. Bottom: boosted.",
+            "notes": "Semi-resolved qq: pairwise leads by about 9 points. Boosted: both arms "
+                     "sit at 99.8%, since picking one fat jet out of five is nearly trivial and "
+                     "there is no combinatorial problem for the bias to help with. That "
+                     "contrast is itself evidence for the mechanism.",
+        },
+        {
+            "title": "How we built the four-top sample",
+            "bullets": [
+                "Card → MadGraph → Delphes → converter → gate → SPANet",
+                "Group converter used **unmodified** at `--n-tops 4`",
+                "15 M events generated: 750 shards, **zero failures**, ~6 h",
+                "**1.63 M train / 408 k test**, label gate PASS",
+            ],
+            "callout": {
+                "text": "Check physics of the four-top simulations (Tommy?)",
+            },
+            "notes": "The group's converter was already parameterised in n_tops with "
+                     "IntRange(2,4), so Tommy built for this. The only new artifacts are a "
+                     "one-line MadGraph process card and the four-top event yaml.\n\n"
+                     "Gate results at scale: zero structural defects across 3.06M labeled tops, "
+                     "double-booking 29.1% (better than our ttbar training set's 36%), and all "
+                     "label-physics windows reproduced (FR 94.3%, W 100.0%, SRqq 83.9%, FB "
+                     "85.4%). Acceptance is 13.6% from the >=12-jet cut.\n\n"
+                     "Cost model: MadGraph about 0.15 s per event steady state. 1M is an "
+                     "afternoon, 15M is an overnight run at 100 parallel shards.",
+        },
+
         {
             "title": "Caveats, stated up front",
             "bullets": [

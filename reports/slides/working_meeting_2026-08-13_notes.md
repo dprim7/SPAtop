@@ -60,27 +60,13 @@ Nuance in the other direction: pairwise transfers the boosted topology across da
 
 Reading: ttbar's roughly 1.9e4 assignment hypotheses are learnable from data alone, so the bias is a crutch that data eventually replaces.
 
-## Pairwise reaches a higher plateau, it does not get there sooner
+## After the standard selection the two t̄t architectures are equivalent
 
-Honest reading of this plot: it does NOT show faster convergence for pairwise. Vanilla reaches 90% of its own best at epoch 5, pairwise at epoch 8. What pairwise buys is a higher asymptote, 0.4293 against 0.4124.
+Standard analysis means the SPAtop group's own pipeline, tcoulvert/SPAtop src/analysis: candidates are selected with dp_to_TopNumProb and matched to generator tops by deltaR. It is the selection an actual analysis would apply, as opposed to our exact-index match.
 
-Worth showing anyway because it rules out the obvious objection that the sweep winner was a lucky epoch: both curves are flat for tens of epochs around their best, so the 1.7-point separation is stable rather than noise.
+Four models here: the fixed-data pair (light) and the v6 pair (dark). The point is that within each dataset the vanilla and pairwise curves lie on top of each other, while the dataset axis separates them cleanly. Purity above 150 GeV: v6 pair 0.55 to 0.62 against 0.45 to 0.52 for the fixed pair. Efficiency at 300 GeV: 0.6 against 0.05.
 
-## Group pt curves, t̄t: the two architectures track each other
-
-Four models here: the fixed-data pair (light) and the v6 pair (dark). The point for the ttbar argument is that after the group's selection the vanilla and pairwise curves lie on top of each other at 15.4M events. The dataset axis moves the curves, the architecture axis does not.
-
-Resolved purity above 150 GeV: v6 pair around 0.55 to 0.62 against 0.45 to 0.52 for the fixed pair. Efficiency at 300 GeV: 0.6 against 0.05, which is the 3 to 6x high-pT gain from more data.
-
-## We built the four-top chain end to end this cycle
-
-The group's converter was already parameterised in n_tops with IntRange(2,4), so Tommy built for this. The only new artifacts are a one-line MadGraph process card and the four-top event yaml.
-
-Gate results at scale: zero structural defects across 3.06M labeled tops, double-booking 29.1% (better than our ttbar training set's 36%), and all label-physics windows reproduced (FR 94.3%, W 100.0%, SRqq 83.9%, FB 85.4%). Acceptance is 13.6% from the >=12-jet cut.
-
-Cost model: MadGraph about 0.15 s per event steady state. 1M is an afternoon, 15M is an overnight run at 100 parallel shards.
-
-On the ask: keep it light in the room. The point is that these are new labels from a chain nobody else has reviewed, and the person best placed to sanity-check the physics is the author of the converter. Offer the files, do not assign work.
+All-category version is in backup.
 
 ## In four tops, pairwise wins decisively
 
@@ -90,15 +76,17 @@ The group-metric check matters because in ttbar their selection ERASED the exact
 
 Those curves were computed on a 100k-event subsample for memory reasons.
 
-## Four-top training curves: separated from the first epoch
+## Standard selection confirms it: pairwise doubles resolved purity
 
-With 1.63M events an epoch is thousands of steps, so both arms are near their ceiling almost immediately. The separation is present from the start and never closes, which argues against the gap being a training-length artifact. It does not rule out a learning-rate artifact, which is what the proposed vanilla tuning scan would test.
+Purity roughly 2x vanilla across 50 to 300 GeV AND 2 to 3x the efficiency, so pairwise is strictly dominant with no purity/efficiency trade to argue about.
 
-## Group pt curves, four tops: pairwise dominates on both axes
+This is the check that matters: in ttbar the same selection ERASED the exact-match gap. Here it confirms it.
 
-Resolved is the headline panel: pairwise roughly doubles purity across 50 to 300 GeV AND gives 2 to 3x the efficiency, so there is no purity/efficiency trade to argue about. Merged purity leads by 10 to 15 points below 400 GeV and converges above 500 GeV where events become boosted and easy.
+## The advantage holds across all four-top categories
 
-Unlike the ttbar case, where the group's selection erased the exact-match gap, here their own metric confirms it.
+Purity leads by 10 to 15 points below 400 GeV and converges above about 500 GeV, where events are boosted and the assignment is easy. That is the expected shape if the bias is helping with combinatorics.
+
+Semi-resolved and boosted panels are in backup.
 
 ## And the advantage grows with data, the opposite of t̄t
 
@@ -121,6 +109,24 @@ Decision 2 is the one to push: it is a small change in extract_prediction, it is
 Decision 3: since SPANet trains on partial events anyway, loosening the cut could turn a 15M generation into about 5M usable events instead of 2M.
 
 Decision 5: tttt hyperparameters were inherited from the ttbar sweep and never tuned for four tops, so pairwise may well do better still.
+
+## Training curves: a higher plateau, not a faster one
+
+Honest reading of the t̄t panel: pairwise is NOT faster. Vanilla reaches 90% of its own best at epoch 5, pairwise at epoch 8. What pairwise buys is a higher asymptote, 0.4293 against 0.4124. Both curves are flat for tens of epochs around their best, which rules out the objection that the sweep winner was a lucky epoch.
+
+Four-top panel: with 1.63M events an epoch is thousands of steps, so both arms are near their ceiling within one or two epochs. The separation is there from the start and never closes, which argues against a training-length artifact. It does not rule out a learning-rate artifact, which is what the proposed vanilla tuning scan would test.
+
+## Four-top semi-resolved and boosted categories
+
+Semi-resolved qq: pairwise leads by about 9 points. Boosted: both arms sit at 99.8%, since picking one fat jet out of five is nearly trivial and there is no combinatorial problem for the bias to help with. That contrast is itself evidence for the mechanism.
+
+## How we built the four-top sample
+
+The group's converter was already parameterised in n_tops with IntRange(2,4), so Tommy built for this. The only new artifacts are a one-line MadGraph process card and the four-top event yaml.
+
+Gate results at scale: zero structural defects across 3.06M labeled tops, double-booking 29.1% (better than our ttbar training set's 36%), and all label-physics windows reproduced (FR 94.3%, W 100.0%, SRqq 83.9%, FB 85.4%). Acceptance is 13.6% from the >=12-jet cut.
+
+Cost model: MadGraph about 0.15 s per event steady state. 1M is an afternoon, 15M is an overnight run at 100 parallel shards.
 
 ## Caveats, stated up front
 

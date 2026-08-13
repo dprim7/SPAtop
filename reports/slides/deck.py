@@ -116,9 +116,10 @@ def _title_slide(s, logo):
 
 def _divider_slide(s, logo):
     return f"""<section class="slide divider">
+  <div class="t-marks">{_mark('exp', 't-logo', dark_ground=True)}{_mark('inst', 't-logo', dark_ground=True)}</div>
   <div class="d-body">
-    <div class="d-rule"></div>
     <h2>{_rich(s['title'])}</h2>
+    <div class="d-rule"></div>
   </div>
 </section>"""
 
@@ -272,9 +273,11 @@ tbody tr.win td{{background:{GOLD};font-weight:700;color:{NAVY};}}
 .t-rule{{width:132px;height:6px;background:{GOLD};margin:26px 0;}}
 .t-sub{{font-size:27px;line-height:1.36;color:#C8D4E2;margin:0;max-width:940px;font-weight:300;}}
 .t-meta{{position:absolute;left:92px;bottom:52px;font-size:18px;color:#8FA3BA;}}
-.slide.divider{{background:{WASH};display:flex;align-items:center;padding:0 92px;}}
-.d-rule{{width:104px;height:5px;background:{GOLD};margin-bottom:22px;}}
-.slide.divider h2{{font-size:52px;color:{NAVY};}}
+.slide.divider{{background:{NAVY};display:flex;align-items:center;
+  justify-content:center;padding:0 92px;}}
+.d-body{{display:flex;flex-direction:column;align-items:center;}}
+.d-rule{{width:132px;height:6px;background:{GOLD};margin-top:26px;}}
+.slide.divider h2{{font-size:64px;color:#fff;letter-spacing:-.02em;margin:0;}}
 @media print{{
   @page{{size:1280px 720px;margin:0;}}
   html,body{{background:#fff;}}
