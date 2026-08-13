@@ -1,0 +1,74 @@
+# Six-top pilot: the third (and final physical) point on the complexity axis.
+# Top production increments in pairs, so the axis is exactly {2, 4, 6} tops;
+# this run supplies the last one.
+#
+# Route (measured 2026-08-10): the fully-decayed 2->18 matrix element is
+# impractical (MadGraph codegen fails after ~2.3 h), so we use the
+# production-only 2->6 ME and let Pythia decay the tops with W -> qq forced.
+# Setup/integration is ~2.15 h per shard, so shards are large to amortise it.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: dp-6t-gen
+  namespace: axol1tl
+spec:
+  completions: 12
+  parallelism: 12
+  completionMode: Indexed
+  backoffLimit: 12
+  ttlSecondsAfterFinished: 259200
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: gen
+        image: docker.io/jmduarte/mapyde:latest
+        command:
+        - /bin/bash
+        - -c
+        - |
+          set -e
+          IDX=${JOB_COMPLETION_INDEX}
+          NEV=4000
+          OUT=/data/spatop/tttttt_pilot
+          if [ -f $OUT/root/tttttt_${IDX}.root ]; then echo "shard ${IDX} done"; exit 0; fi
+          mkdir -p /work && cd /work
+          cp /cards/tttttt_prod.txt input.dat
+          echo "set run_card iseed $((IDX+2001))" >> input.dat
+          echo "set run_card nevents ${NEV}" >> input.dat
+          T0=$(date +%s)
+          mg5_aMC input.dat > mg.log 2>&1 || { tail -6 mg.log; exit 1; }
+          T1=$(date +%s)
+          LHE=tttttt_prod/Events/run_01/unweighted_events.lhe.gz
+          [ -f "$LHE" ] || { echo "NO LHE"; tail -6 mg.log; exit 1; }
+          gunzip -k $LHE
+          N=$(grep -c '<event>' tttttt_prod/Events/run_01/unweighted_events.lhe)
+          echo "shard ${IDX}: MG ${N} events in $((T1-T0))s"
+          grep -i "Cross-section" mg.log | tail -1 || true
+          cp /cards/pythia_LHE.cmnd config.cmnd
+          printf "\nMain:numberOfEvents = %s\n" "${NEV}" >> config.cmnd
+          printf "Beams:LHEF = tttttt_prod/Events/run_01/unweighted_events.lhe\n" >> config.cmnd
+          # all-hadronic: force every W to quarks (MG produced undecayed tops)
+          printf "24:onMode = off\n24:onIfAny = 1 2 3 4 5\n" >> config.cmnd
+          export PYTHIA8DATA=/usr/local/share/Pythia8/xmldoc
+          export LD_LIBRARY_PATH=/usr/local/share/delphes/Delphes-3.5.0:$LD_LIBRARY_PATH
+          T2=$(date +%s)
+          /data/spatop/tttt_pilot/bin/DelphesPythia8 /cards/delphes_card_CMS_vfj.tcl \
+            config.cmnd out.root > delphes.log 2>&1 || { tail -6 delphes.log; exit 1; }
+          T3=$(date +%s)
+          echo "shard ${IDX}: shower+detector in $((T3-T2))s"
+          mkdir -p $OUT/root $OUT/lhe
+          cp out.root $OUT/root/tttttt_${IDX}.root
+          cp $LHE $OUT/lhe/tttttt_${IDX}.lhe.gz
+          echo "6T-SHARD-${IDX}-DONE"
+        resources:
+          limits:   {cpu: "4", memory: 12Gi}
+          requests: {cpu: "4", memory: 12Gi}
+        volumeMounts:
+        - {mountPath: /cards, name: cards}
+        - {mountPath: /data, name: vol}
+      volumes:
+      - name: cards
+        configMap: {name: dp-tttt-cards}
+      - name: vol
+        persistentVolumeClaim: {claimName: traindatavol}
