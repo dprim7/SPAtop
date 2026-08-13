@@ -26,6 +26,8 @@ Secondary confound if asked: class weights shrink the loss by about 100x while l
 
 The legacy config also plateaued at epoch 11 (lr 1.5e-3, zero dropout). A clean architecture-only reference run is a one-line change if wanted.
 
+Architecture also differs: 8 heads and 4 encoder layers for us, 4 and 6 for legacy. Left off the slide because the regularisation differences are what drive the result.
+
 Legacy numbers verified live against Alexanders101/SPANet options_files/full_hadronic_ttbar/full_training.json. Vanilla column is the g2vc1w2g sweep winner; heads, encoder layers, clip and balance_particles come from the sweep base config, which every trial shared.
 
 ## Correction: our earlier per-topology numbers were slot-ordered

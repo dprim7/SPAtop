@@ -78,17 +78,14 @@ DECK = {
             "bullets": [
                 "FB is already ~100% findable, so **nothing to gain**",
                 "Downweighted FR classes (67% of events) collapse",
-                "Legacy row is **confounded**: it also sets reweighting",
             ],
             "minitable": {
-                "label": "Where the legacy recipe differs",
+                "label": "Legacy differs on every regularisation knob",
                 "head": ["", "best vanilla (g2vc1w2g)", "legacy (SPANet paper)"],
                 "rows": [
                     ["learning rate", "4.7e-4", "1.5e-3"],
                     ["dropout", "0.24", "0"],
                     ["gradient clip", "10", "0"],
-                    ["attention heads", "8", "4"],
-                    ["encoder layers", "4", "6"],
                     ["balance_particles", "off", "on"],
                 ],
             },
@@ -106,6 +103,9 @@ DECK = {
                      "rescaled l2.\n\n"
                      "The legacy config also plateaued at epoch 11 (lr 1.5e-3, zero dropout). A "
                      "clean architecture-only reference run is a one-line change if wanted.\n\n"
+                     "Architecture also differs: 8 heads and 4 encoder layers for us, 4 and 6 "
+                     "for legacy. Left off the slide because the regularisation "
+                     "differences are what drive the result.\n\n"
                      "Legacy numbers verified live against "
                      "Alexanders101/SPANet options_files/full_hadronic_ttbar/"
                      "full_training.json. Vanilla column is the g2vc1w2g sweep winner; "

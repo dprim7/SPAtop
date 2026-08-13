@@ -12,6 +12,30 @@ Outputs a self-contained `.html` (figures embedded : safe to email) and a
 
 **Present**: open the HTML, arrow keys to navigate.
 **PDF**: ⌘/Ctrl-P → landscape, margins *none*, background graphics *on*.
+**Editable PowerPoint**: `python3 build_pptx.py` writes
+`working_meeting_2026-08-13.pptx` from the same `DECK` and verifies it. Text,
+tables and figures are all native objects, so they are editable in PowerPoint
+or Google Slides.
+
+## Verifying the .pptx
+
+Never hand over a generated deck unchecked. `verify_pptx.py` runs two
+independent passes:
+
+1. **Structural.** Re-opens the saved file and asserts every title, bullet,
+   table cell, caption, equation and figure from `DECK` is present, that no
+   shape crosses the slide edge or the footer rule, and that no source markup
+   (`<sub>`, `<i>`, `**`) survived as literal text.
+2. **Visual.** Redraws each slide *from the saved file* to PNG with PIL, run by
+   run, honouring per-run size, colour, weight and sub/sup baseline.
+
+```bash
+python3 verify_pptx.py working_meeting_2026-08-13.pptx /tmp/preview
+```
+
+The previewer draws ovals as rectangles and wraps text approximately; those are
+previewer limits, not file defects. Everything else it shows is really in the
+file.
 
 ## House rules (enforced by the template's shape)
 
