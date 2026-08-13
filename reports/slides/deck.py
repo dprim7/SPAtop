@@ -159,6 +159,12 @@ def _content_slide(s, logo, num, total, footer):
     body += _bullets_html(s.get("bullets"))
     if s.get("kicker"):
         body += f"<p class='kicker'>{_rich(s['kicker'])}</p>"
+    if s.get("equation"):
+        eqs = s["equation"]
+        eqs = eqs if isinstance(eqs, list) else [eqs]
+        body += ("<div class='eqs'>"
+                 + "".join(f"<div class='eq'>{e}</div>" for e in eqs)
+                 + "</div>")
     if s.get("callout"):
         c = s["callout"]
         c = c if isinstance(c, dict) else {"text": c}
@@ -194,17 +200,17 @@ html,body{{margin:0;padding:0;background:#20242b;
 .slide{{position:relative;width:1280px;height:720px;flex:0 0 auto;background:{PAPER};
   overflow:hidden;box-shadow:0 6px 26px rgba(0,0,0,.34);padding:58px 72px 0;}}
 .slide header{{margin-bottom:26px;}}
-.marks{{position:absolute;top:30px;display:flex;align-items:center;gap:14px;z-index:2;}}
+.marks{{position:absolute;top:26px;display:flex;align-items:center;gap:14px;z-index:2;}}
 .marks.right{{right:72px;}}
 .marks.left{{left:72px;}}
 .c-logo{{width:auto;opacity:.94;}}
-.marks img[alt=CMS]{{height:30px;}}
-.marks img[alt=UCSD]{{height:19px;}}
+.marks img[alt=CMS]{{height:60px;}}
+.marks img[alt=UCSD]{{height:38px;}}
 .ph{{display:inline-flex;align-items:center;justify-content:center;
   border:1px dashed #B9C3CE;color:#9AA6B4;border-radius:3px;
   font-size:11px;letter-spacing:.09em;padding:0 9px;height:26px;}}
 .t-logo.ph{{height:52px;font-size:15px;padding:0 20px;border-color:#5E7A9A;color:#9FB4CC;}}
-.slide h2{{max-width:940px;font-size:40px;line-height:1.14;letter-spacing:-.02em;font-weight:700;
+.slide h2{{max-width:820px;font-size:40px;line-height:1.14;letter-spacing:-.02em;font-weight:700;
   color:{NAVY};margin:0;max-width:1040px;text-wrap:balance;}}
 .rule{{width:104px;height:5px;background:{GOLD};margin-top:18px;}}
 .body{{height:474px;display:flex;gap:44px;}}
@@ -217,6 +223,14 @@ html,body{{margin:0;padding:0;background:#20242b;
 .bul li::before{{content:"";position:absolute;left:0;top:14px;width:11px;height:3px;background:{GOLD};}}
 .bul li b{{color:{NAVY};font-weight:700;}}
 .kicker{{margin:6px 0 0;font-size:23px;color:{BLUE};font-weight:600;max-width:1000px;}}
+.eqs{{display:flex;flex-direction:column;gap:14px;align-items:center;
+  margin:6px 0 4px;}}
+.eq{{font-family:"Iowan Old Style",Georgia,"Times New Roman",serif;
+  font-size:30px;color:{NAVY};letter-spacing:.01em;line-height:1.35;
+  background:{WASH};border-radius:5px;padding:14px 30px;white-space:nowrap;}}
+.eq .v{{color:{BLUE};font-weight:600;}}
+.eq sub{{font-size:.62em;}} .eq sup{{font-size:.62em;}}
+.eq i{{font-family:"Iowan Old Style",Georgia,serif;}}
 .callout{{margin-top:auto;background:#EEF4F9;border-left:5px solid {BLUE};
   border-radius:0 4px 4px 0;padding:15px 22px;max-width:1050px;}}
 .co-label{{display:block;font-size:13px;letter-spacing:.13em;text-transform:uppercase;
@@ -248,11 +262,11 @@ tbody tr.win td{{background:{GOLD};font-weight:700;color:{NAVY};}}
 .f-num{{margin-left:auto;font-size:15px;color:{MUTED};font-variant-numeric:tabular-nums;}}
 .slide.title{{background:{NAVY};color:#fff;display:flex;flex-direction:column;
   justify-content:center;padding:0 92px;}}
-.t-marks{{position:absolute;top:56px;left:92px;right:92px;display:flex;
+.t-marks{{position:absolute;top:44px;left:92px;right:92px;display:flex;
   align-items:center;justify-content:space-between;}}
 .t-logo{{width:auto;}}
-.t-marks img[alt=CMS]{{height:62px;}}
-.t-marks img[alt=UCSD]{{height:34px;}}
+.t-marks img[alt=CMS]{{height:124px;}}
+.t-marks img[alt=UCSD]{{height:68px;}}
 .slide.title h1{{font-size:60px;line-height:1.08;letter-spacing:-.025em;font-weight:700;
   margin:0;max-width:1020px;text-wrap:balance;}}
 .t-rule{{width:132px;height:6px;background:{GOLD};margin:26px 0;}}

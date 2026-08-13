@@ -1,0 +1,123 @@
+# Sample-efficiency scan: 5 points per regime, the two ends already measured,
+# these are the 3 interior points for each of tt and tttt, both arms.
+#
+#   tt   anchors 864 k (fixed data) and 15.4 M (delphes v6)
+#        interior 1.8 M / 3.6 M / 7.5 M  -> dataset_limit 0.115 / 0.237 / 0.487 of v6
+#   tttt anchors 10.9 k (pilot) and 1.63 M
+#        interior 38 k / 133 k / 466 k   -> dataset_limit 0.023 / 0.082 / 0.286
+#
+# Epochs scale as ~1/fraction (capped) so every point gets a comparable
+# gradient-step budget; the reported number is always the best validation
+# checkpoint, so undertraining cannot flatter a small-data point.
+#
+# Code is PINNED per cell to whatever the corresponding anchor was trained
+# with: the pairwise fork moved on 2026-08-04 (delta_phi wrap, buffer refactor),
+# so the v6 anchor predates it and the tttt anchor does not.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: dp-fracscan
+  namespace: axol1tl
+spec:
+  completions: 12
+  parallelism: 2
+  completionMode: Indexed
+  backoffLimit: 24
+  ttlSecondsAfterFinished: 259200
+  template:
+    spec:
+      restartPolicy: Never
+      securityContext:
+        runAsUser: 0
+        fsGroup: 0
+      containers:
+      - name: train
+        image: gitlab-registry.nrp-nautilus.io/mquinnan/top-spanet:spatop-container
+        env:
+        - name: WANDB_API_KEY
+          valueFrom: {secretKeyRef: {name: dp-wandb, key: api-key, optional: true}}
+        - name: WANDB_PROJECT
+          value: spatop
+        command:
+        - /bin/bash
+        - -c
+        - |
+          set -e
+          I=${JOB_COMPLETION_INDEX}
+          # cell table: regime arm frac epochs baseconfig pin
+          CELLS=(
+            "tt vanilla  0.115 60 /data/spatop/options_files/sweep_fixed_dp/config_gs8pex8v_v6_vanilla.json billy"
+            "tt vanilla  0.237 42 /data/spatop/options_files/sweep_fixed_dp/config_gs8pex8v_v6_vanilla.json billy"
+            "tt vanilla  0.487 21 /data/spatop/options_files/sweep_fixed_dp/config_gs8pex8v_v6_vanilla.json billy"
+            "tt pairwise 0.115 60 /data/spatop/options_files/sweep_fixed_dp/config_gs8pex8v_v6.json 0983c4f"
+            "tt pairwise 0.237 42 /data/spatop/options_files/sweep_fixed_dp/config_gs8pex8v_v6.json 0983c4f"
+            "tt pairwise 0.487 21 /data/spatop/options_files/sweep_fixed_dp/config_gs8pex8v_v6.json 0983c4f"
+            "tttt vanilla  0.023 80 /data/spatop/tttt_15M/configs/tttt15m_vanilla.json billy"
+            "tttt vanilla  0.082 80 /data/spatop/tttt_15M/configs/tttt15m_vanilla.json billy"
+            "tttt vanilla  0.286 52 /data/spatop/tttt_15M/configs/tttt15m_vanilla.json billy"
+            "tttt pairwise 0.023 80 /data/spatop/tttt_15M/configs/tttt15m_blocks.json aaa5635"
+            "tttt pairwise 0.082 80 /data/spatop/tttt_15M/configs/tttt15m_blocks.json aaa5635"
+            "tttt pairwise 0.286 52 /data/spatop/tttt_15M/configs/tttt15m_blocks.json aaa5635"
+          )
+          read REGIME ARM FRAC EPOCHS BASE PIN <<< "${CELLS[$I]}"
+          TAG="${REGIME}_${ARM}_f${FRAC}"
+          OUT=/data/spatop/fracscan
+          if [ -d $OUT/logs/spatop_$TAG ]; then echo "$TAG already done"; exit 0; fi
+          echo "cell $I: regime=$REGIME arm=$ARM frac=$FRAC epochs=$EPOCHS pin=$PIN"
+
+          if [ "$PIN" = "billy" ]; then
+            pip install -q git+https://github.com/billy000400/SPANet@maad_dev tensorboard rich wandb 2>&1 | tail -1
+          else
+            pip install -q git+https://github.com/dprim7/SPANet.git@${PIN} tensorboard rich wandb 2>&1 | tail -1
+          fi
+
+          python - <<PYEOF
+          import json, os
+          cfg = json.load(open("$BASE"))
+          cfg["dataset_limit"] = float("$FRAC")
+          cfg["epochs"] = int("$EPOCHS")
+          os.makedirs("$OUT/configs", exist_ok=True)
+          json.dump(cfg, open("$OUT/configs/$TAG.json", "w"), indent=2)
+          print("config:", cfg["training_file"], "limit", cfg["dataset_limit"],
+                "epochs", cfg["epochs"])
+          PYEOF
+
+          python - <<'PYEOF'
+          import os, re, spanet
+          f = os.path.join(os.path.dirname(spanet.__file__), "train.py")
+          src = open(f).read()
+          old = "    logger = TensorBoardLogger(save_dir=log_dir, name=name)"
+          new = ("    if __import__('os').environ.get('WANDB_API_KEY'):\n"
+                 "        from pytorch_lightning.loggers import WandbLogger\n"
+                 "        logger = WandbLogger(project=__import__('os').environ.get('WANDB_PROJECT','spatop'),\n"
+                 "                             name=name, save_dir=log_dir)\n"
+                 "    else:\n"
+                 "        logger = TensorBoardLogger(save_dir=log_dir, name=name)")
+          assert old in src
+          src = src.replace(old, new)
+          src, _ = re.subn(r"trainer\.logger\.log_dir", "(trainer.logger.log_dir or log_dir)", src)
+          open(f, "w").write(src)
+          PYEOF
+
+          mkdir -p /scratch/logs
+          ( while true; do sleep 300; rsync -a /scratch/logs/ $OUT/logs/ 2>/dev/null || true; done ) &
+          SYNC=$!
+          python -m spanet.train -of $OUT/configs/$TAG.json -l /scratch/logs -n spatop_$TAG 2>&1 | tail -3
+          kill $SYNC 2>/dev/null || true
+          mkdir -p $OUT/logs
+          rsync -a /scratch/logs/ $OUT/logs/ 2>/dev/null || cp -ru /scratch/logs/* $OUT/logs/
+          echo "FRACSCAN-${I}-${TAG}-DONE"
+        resources:
+          limits:   {cpu: "2", memory: 20Gi, nvidia.com/a100: "1"}
+          requests: {cpu: "2", memory: 20Gi, nvidia.com/a100: "1"}
+        volumeMounts:
+        - {mountPath: /dev/shm, name: dshm}
+        - {mountPath: /data, name: vol}
+        - {mountPath: /scratch, name: scratch}
+      volumes:
+      - name: dshm
+        emptyDir: {medium: Memory, sizeLimit: 8Gi}
+      - name: scratch
+        emptyDir: {sizeLimit: 40Gi}
+      - name: vol
+        persistentVolumeClaim: {claimName: traindatavol}

@@ -60,6 +60,18 @@ Nuance in the other direction: pairwise transfers the boosted topology across da
 
 Reading: ttbar's roughly 1.9e4 assignment hypotheses are learnable from data alone, so the bias is a crutch that data eventually replaces.
 
+## Pairwise reaches a higher plateau, it does not get there sooner
+
+Honest reading of this plot: it does NOT show faster convergence for pairwise. Vanilla reaches 90% of its own best at epoch 5, pairwise at epoch 8. What pairwise buys is a higher asymptote, 0.4293 against 0.4124.
+
+Worth showing anyway because it rules out the obvious objection that the sweep winner was a lucky epoch: both curves are flat for tens of epochs around their best, so the 1.7-point separation is stable rather than noise.
+
+## Group pt curves, t̄t: the two architectures track each other
+
+Four models here: the fixed-data pair (light) and the v6 pair (dark). The point for the ttbar argument is that after the group's selection the vanilla and pairwise curves lie on top of each other at 15.4M events. The dataset axis moves the curves, the architecture axis does not.
+
+Resolved purity above 150 GeV: v6 pair around 0.55 to 0.62 against 0.45 to 0.52 for the fixed pair. Efficiency at 300 GeV: 0.6 against 0.05, which is the 3 to 6x high-pT gain from more data.
+
 ## We built the four-top chain end to end this cycle
 
 The group's converter was already parameterised in n_tops with IntRange(2,4), so Tommy built for this. The only new artifacts are a one-line MadGraph process card and the four-top event yaml.
@@ -78,13 +90,23 @@ The group-metric check matters because in ttbar their selection ERASED the exact
 
 Those curves were computed on a 100k-event subsample for memory reasons.
 
+## Four-top training curves: separated from the first epoch
+
+With 1.63M events an epoch is thousands of steps, so both arms are near their ceiling almost immediately. The separation is present from the start and never closes, which argues against the gap being a training-length artifact. It does not rule out a learning-rate artifact, which is what the proposed vanilla tuning scan would test.
+
+## Group pt curves, four tops: pairwise dominates on both axes
+
+Resolved is the headline panel: pairwise roughly doubles purity across 50 to 300 GeV AND gives 2 to 3x the efficiency, so there is no purity/efficiency trade to argue about. Merged purity leads by 10 to 15 points below 400 GeV and converges above 500 GeV where events become boosted and easy.
+
+Unlike the ttbar case, where the group's selection erased the exact-match gap, here their own metric confirms it.
+
 ## And the advantage grows with data, the opposite of t̄t
 
 This is the money slide. In ttbar the bias is a sample-efficiency device that more data replaces and eventually overtakes. In tttt the gap WIDENS by 4x going from 10.9k to 1.63M training events: the pair-level physics (kT, z, deltaR, m^2) is supplying combinatorial structure the plain transformer does not extract even from 1.6 million events.
 
 If challenged on statistics: one run per arm, but a 13-point gap is far beyond plausible seed noise. The 1-point ttbar small-data gap is not, and I do not lean on it.
 
-## Recommendation: vanilla SPAtop for t̄t, keep pairwise for multi-top
+## Recommendation: vanilla SPAtop for t̄t, pairwise for multi-top
 
 Naming: the baseline arm is vanilla SPAtop, meaning Billy's SPAtop adaptation of SPANet (billy000400/SPANet@maad_dev) without the pairwise bias. It is not upstream stock SPANet, and calling it that would be wrong.
 

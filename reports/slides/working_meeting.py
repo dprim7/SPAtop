@@ -11,7 +11,7 @@ P = "../plots_dp_fixed"   # figures, relative to reports/slides/
 
 DECK = {
     "title": "SPAtop Update, 13 Aug 2026",
-    "footer": "SPAtop Update · t̄t reconstruction & the multi-top program · 13 Aug 2026",
+    "footer": "SPAtop Update · 13 Aug 2026",
     "slides": [
         {
             "type": "title",
@@ -78,8 +78,16 @@ DECK = {
             "bullets": [
                 "FB is already ~100% findable, so **nothing to gain**",
                 "Downweighted FR classes (67% of events) collapse",
-                "Legacy row **confounded**: that recipe also sets reweighting",
             ],
+            "callout": {
+                "label": "Legacy config vs vanilla SPAtop",
+                "text": "Legacy is the original SPANet-paper hadronic-t̄t recipe: "
+                        "`balance_particles: true` (so its row is confounded with the "
+                        "row above), `dropout 0`, `gradient_clip 0`, `lr 1.5e-3`, "
+                        "4 attention heads and 6 encoder layers. Vanilla SPAtop uses "
+                        "our swept values: dropout 0.30, clip 10, lr 7.3e-4, 8 heads, "
+                        "4 encoder layers, and no reweighting.",
+            },
             "notes": "All numbers are the percentage of true tops of that topology whose full "
                      "assignment is exactly correct, slot-order-free. Event purity is the "
                      "percentage of events in which every present target is correct.\n\n"
@@ -189,6 +197,36 @@ DECK = {
                      "data alone, so the bias is a crutch that data eventually replaces.",
         },
         {
+            "title": "Pairwise reaches a higher plateau, it does not get there sooner",
+            "figure": f"{P}/tt_convergence.png",
+            "bullets": [
+                "Same ceiling reached by **epoch 8 to 24**, then flat",
+                "Vanilla hits 90% of its own best **first** (epoch 5 vs 8)",
+                "The gap is a **plateau difference**, not a speed one",
+            ],
+            "notes": "Honest reading of this plot: it does NOT show faster convergence for "
+                     "pairwise. Vanilla reaches 90% of its own best at epoch 5, pairwise at "
+                     "epoch 8. What pairwise buys is a higher asymptote, 0.4293 against "
+                     "0.4124.\n\n"
+                     "Worth showing anyway because it rules out the obvious objection that the "
+                     "sweep winner was a lucky epoch: both curves are flat for tens of epochs "
+                     "around their best, so the 1.7-point separation is stable rather than "
+                     "noise.",
+        },
+        {
+            "title": "Group pt curves, t̄t: the two architectures track each other",
+            "figure": f"{P}/tt_ptcurves_slide.png",
+            "caption": "Group pipeline (dp_to_TopNumProb selection, ΔR matching). "
+                       "Top: resolved. Bottom: all categories.",
+            "notes": "Four models here: the fixed-data pair (light) and the v6 pair (dark). "
+                     "The point for the ttbar argument is that after the group's selection the "
+                     "vanilla and pairwise curves lie on top of each other at 15.4M events. The "
+                     "dataset axis moves the curves, the architecture axis does not.\n\n"
+                     "Resolved purity above 150 GeV: v6 pair around 0.55 to 0.62 against 0.45 "
+                     "to 0.52 for the fixed pair. Efficiency at 300 GeV: 0.6 against 0.05, "
+                     "which is the 3 to 6x high-pT gain from more data.",
+        },
+        {
             "title": "We built the four-top chain end to end this cycle",
             "bullets": [
                 "Card → MadGraph → Delphes → converter → gate → SPANet",
@@ -197,12 +235,7 @@ DECK = {
                 "**1.63 M train / 408 k test**, label gate PASS",
             ],
             "callout": {
-                "label": "Proposed next step",
-                "text": "The four-top physics has so far only been validated in-house. An "
-                        "independent look at the sample, ideally from Tommy given he owns the "
-                        "production chain, would put it on much firmer ground before the group "
-                        "builds on these numbers. Happy to package the files and the validation "
-                        "scripts whenever there is bandwidth.",
+                "text": "Check physics of the four-top simulations (Tommy?)",
             },
             "notes": "The group's converter was already parameterised in n_tops with "
                      "IntRange(2,4), so Tommy built for this. The only new artifacts are a "
@@ -242,6 +275,33 @@ DECK = {
                      "Those curves were computed on a 100k-event subsample for memory reasons.",
         },
         {
+            "title": "Four-top training curves: separated from the first epoch",
+            "figure": f"{P}/tttt_convergence.png",
+            "bullets": [
+                "Both plateau within **one or two epochs** at 1.63 M events",
+                "Pairwise sits **above vanilla throughout**, never crosses",
+                "Best: **0.4558** against 0.4046",
+            ],
+            "notes": "With 1.63M events an epoch is thousands of steps, so both arms are near "
+                     "their ceiling almost immediately. The separation is present from the "
+                     "start and never closes, which argues against the gap being a "
+                     "training-length artifact. It does not rule out a learning-rate artifact, "
+                     "which is what the proposed vanilla tuning scan would test.",
+        },
+        {
+            "title": "Group pt curves, four tops: pairwise dominates on both axes",
+            "figure": f"{P}/tttt_ptcurves_slide.png",
+            "caption": "Resolved, semi-resolved qq, boosted, all categories. "
+                       "100 k-event subsample of the test set.",
+            "notes": "Resolved is the headline panel: pairwise roughly doubles purity across "
+                     "50 to 300 GeV AND gives 2 to 3x the efficiency, so there is no "
+                     "purity/efficiency trade to argue about. Merged purity leads by 10 to 15 "
+                     "points below 400 GeV and converges above 500 GeV where events become "
+                     "boosted and easy.\n\n"
+                     "Unlike the ttbar case, where the group's selection erased the exact-match "
+                     "gap, here their own metric confirms it.",
+        },
+        {
             "title": "And the advantage grows with data, the opposite of t̄t",
             "table": {
                 "head": ["FR gap, pairwise − vanilla", "t̄t", "tttt"],
@@ -250,9 +310,17 @@ DECK = {
                     {"cells": ["large data", "−5.0  (15.4 M)", "+13.0  (1.63 M)"], "win": True},
                 ],
             },
+            "equation": [
+                "<i>H<sub>T</sub></i>(<i>N</i>) = <i>N</i>! / [ (<i>N</i>−3<i>T</i>)! · 2<sup><i>T</i></sup> · <i>T</i>! ] "
+                "&nbsp;&nbsp;→&nbsp;&nbsp; <span class='v'>1.9×10<sup>4</sup></span> (t̄t) "
+                "&nbsp;·&nbsp; <span class='v'>2.3×10<sup>9</sup></span> (tttt)",
+                "label symmetry <i>T</i>! = <span class='v'>2</span> (t̄t) "
+                "&nbsp;·&nbsp; <span class='v'>24</span> (tttt) "
+                "&nbsp;·&nbsp; <span class='v'>720</span> (t̄tt̄tt̄t)",
+            ],
             "bullets": [
-                "t̄t: ~2 × 10⁴ hypotheses, **learnable from data alone**",
-                "tttt: ~10⁸ hypotheses, **the bias supplies what data cannot**",
+                "Gap is **flat in jet count**, so not raw search space",
+                "It tracks the **number of tops**, not the search space",
             ],
             "notes": "This is the money slide. In ttbar the bias is a sample-efficiency device "
                      "that more data replaces and eventually overtakes. In tttt the gap WIDENS "
@@ -264,10 +332,10 @@ DECK = {
                      "I do not lean on it.",
         },
         {
-            "title": "Recommendation: vanilla SPAtop for t̄t, keep pairwise for multi-top",
+            "title": "Recommendation: vanilla SPAtop for t̄t, pairwise for multi-top",
             "bullets": [
-                "t̄t offline: **vanilla SPAtop**, shared tooling, no fork to maintain",
-                "Multi-top: **keep and upstream** the pairwise bias",
+                "t̄t: **vanilla SPAtop**",
+                "t̄tt̄t, t̄tt̄tt̄t: **pairwise attention SPAtop**",
                 "**Improvements**: data first for t̄t, architecture first for tttt",
             ],
             "notes": "Naming: the baseline arm is vanilla SPAtop, meaning Billy's SPAtop "
