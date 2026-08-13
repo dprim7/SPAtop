@@ -264,26 +264,25 @@ DECK = {
                      "I do not lean on it.",
         },
         {
-            "title": "Recommendation: stock SPANet for t̄t, keep pairwise for multi-top",
+            "title": "Recommendation: vanilla SPAtop for t̄t, keep pairwise for multi-top",
             "bullets": [
-                "t̄t offline: **stock SPANet**, shared tooling, no fork to maintain",
-                "Use it for **assignment only**, not as a discriminator",
+                "t̄t offline: **vanilla SPAtop**, shared tooling, no fork to maintain",
                 "Multi-top: **keep and upstream** the pairwise bias",
-                "Data is first-order for t̄t; architecture is first-order for tttt",
+                "**Improvements**: data first for t̄t, architecture first for tttt",
             ],
-            "notes": "On the discriminator point, if it comes up: the model has never seen "
-                     "background, so its probabilities are calibrated to WHICH topology a ttbar "
-                     "event has, not WHETHER an event is ttbar. Jet assignment is an intra-event "
-                     "ranking, so process-level mismodelling largely cancels and the output is "
-                     "validatable in data through the top and W mass peaks. A discriminator is "
-                     "an inter-event, process-level statement fully exposed to QCD "
-                     "mismodelling. Discriminate downstream on the assigned candidates' "
-                     "physical observables.\n\n"
+            "notes": "Naming: the baseline arm is vanilla SPAtop, meaning Billy's SPAtop "
+                     "adaptation of SPANet (billy000400/SPANet@maad_dev) without the pairwise "
+                     "bias. It is not upstream stock SPANet, and calling it that would be "
+                     "wrong.\n\n"
                      "On upstreaming: if pairwise becomes load-bearing for the multi-top "
                      "program, the maintenance argument inverts. It should live upstream where "
                      "HHH-style users share the code path, not in a personal branch. We had a "
                      "branch move under a running eval this cycle and it broke checkpoint "
-                     "loading.",
+                     "loading.\n\n"
+                     "Assignment-only rather than discriminator is assumed known in the room, so "
+                     "it is off the slide. One line if challenged: the model never sees "
+                     "background, so its probabilities say which topology a ttbar event has, not "
+                     "whether an event is ttbar.",
         },
         {
             "type": "decisions",
