@@ -68,14 +68,17 @@ def _uri(path):
         return f"data:{mime};base64," + base64.b64encode(f.read()).decode()
 
 
-def _mark(kind, cls):
-    """Institution/experiment mark, or a labelled placeholder if absent."""
+def _mark(kind, cls, dark_ground=False):
+    """Institution/experiment mark. Picks the variant that suits the slide
+    ground (`*-white.png` on dark), falls back to a labelled placeholder."""
     names = {"inst": ("ucsd-logo", "UCSD"), "exp": ("cms-logo", "CMS")}
     stem, label = names[kind]
-    for ext in ("png", "svg", "jpg"):
-        u = _uri(os.path.join(ASSETS, f"{stem}.{ext}"))
-        if u:
-            return f"<img class='{cls}' src='{u}' alt='{label}'>"
+    stems = [f"{stem}-white", stem] if dark_ground else [stem, f"{stem}-white"]
+    for s in stems:
+        for ext in ("png", "svg", "jpg"):
+            u = _uri(os.path.join(ASSETS, f"{s}.{ext}"))
+            if u:
+                return f"<img class='{cls}' src='{u}' alt='{label}'>"
     return f"<span class='{cls} ph'>{label}</span>"
 
 
@@ -99,7 +102,7 @@ def _title_slide(s, logo):
     sub = f"<p class='t-sub'>{_rich(s['subtitle'])}</p>" if s.get("subtitle") else ""
     meta = " &nbsp;·&nbsp; ".join(_esc(x) for x in s.get("meta", []))
     return f"""<section class="slide title">
-  <div class="t-marks">{_mark('exp', 't-logo')}{_mark('inst', 't-logo')}</div>
+  <div class="t-marks">{_mark('exp', 't-logo', dark_ground=True)}{_mark('inst', 't-logo', dark_ground=True)}</div>
   <div class="t-body">
     <h1>{_rich(s['title'])}</h1>
     <div class="t-rule"></div>
@@ -186,7 +189,9 @@ html,body{{margin:0;padding:0;background:#20242b;
 .marks{{position:absolute;top:30px;display:flex;align-items:center;gap:14px;z-index:2;}}
 .marks.right{{right:72px;}}
 .marks.left{{left:72px;}}
-.c-logo{{height:26px;width:auto;opacity:.92;}}
+.c-logo{{width:auto;opacity:.94;}}
+.marks img[alt=CMS]{{height:30px;}}
+.marks img[alt=UCSD]{{height:19px;}}
 .ph{{display:inline-flex;align-items:center;justify-content:center;
   border:1px dashed #B9C3CE;color:#9AA6B4;border-radius:3px;
   font-size:11px;letter-spacing:.09em;padding:0 9px;height:26px;}}
@@ -232,7 +237,9 @@ tbody tr.win td{{background:{GOLD};font-weight:700;color:{NAVY};}}
   justify-content:center;padding:0 92px;}}
 .t-marks{{position:absolute;top:56px;left:92px;right:92px;display:flex;
   align-items:center;justify-content:space-between;}}
-.t-logo{{height:52px;width:auto;}}
+.t-logo{{width:auto;}}
+.t-marks img[alt=CMS]{{height:62px;}}
+.t-marks img[alt=UCSD]{{height:34px;}}
 .slide.title h1{{font-size:60px;line-height:1.08;letter-spacing:-.025em;font-weight:700;
   margin:0;max-width:1020px;text-wrap:balance;}}
 .t-rule{{width:132px;height:6px;background:{GOLD};margin:26px 0;}}

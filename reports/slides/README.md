@@ -29,15 +29,23 @@ Palette follows the UC San Diego primary colours (Navy `#182B49`, Blue
 `#00629B`, Gold `#FFCD00`) — confirm against the current brand guide before an
 external talk.
 
-**Logos** are drop-in and deliberately not vendored — use the real assets, not
-redrawn ones:
+**Logos** are the official artwork, fetched from the institutions' own sites —
+never redrawn. Two variants each, and the generator picks by slide ground:
 
-| file | source |
-|---|---|
-| `assets/ucsd-logo.png` | brand.ucsd.edu |
-| `assets/cms-logo.png`  | CMS collaboration resources |
+| file | used on | source |
+|---|---|---|
+| `assets/ucsd-logo.png` | light slides (navy ink) | cdn.ucsd.edu (recoloured from the official white file) |
+| `assets/ucsd-logo-white.png` | title slide (navy ground) | cdn.ucsd.edu, as published |
+| `assets/cms-logo.png` | light slides | cms.cern |
+| `assets/cms-logo-white.png` | title slide | cms.cern (negative version) |
 
-Missing assets render as a dashed placeholder so the layout stays reviewable.
+Only the *ink colour* of the UCSD wordmark was changed (white → navy), which
+the brand guide permits for single-colour reproduction; the artwork is
+untouched. If a file is missing the deck falls back to a dashed placeholder so
+the layout stays reviewable.
+
+For a **public/external** talk, re-download from brand.ucsd.edu and the CMS
+resources to be sure you have the current approved marks.
 Placement follows the HEP convention: CMS top-left / UCSD top-right on the
 title slide, both small together in the top-right on content slides (so the
 headline keeps its left edge). Set `LOGO_SPLIT = True` in `deck.py` to mirror
