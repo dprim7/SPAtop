@@ -400,14 +400,19 @@ spec:
 
           echo "########## DONE ##########"
         resources:
+          # A100 nodes advertise the TYPED resource nvidia.com/a100 and expose
+          # nvidia.com/gpu: 0, so a generic gpu request can never schedule on
+          # them: it sits Pending forever against the A100 nodeAffinity above.
+          # Limit/request ratios stay under 1.2 or the admission controller
+          # warns (cpu 16/8 and memory 64Gi/32Gi both tripped it).
           limits:
             cpu: "16"
             memory: 64Gi
-            nvidia.com/gpu: "1"
+            nvidia.com/a100: "1"
           requests:
-            cpu: "8"
-            memory: 32Gi
-            nvidia.com/gpu: "1"
+            cpu: "14"
+            memory: 56Gi
+            nvidia.com/a100: "1"
         volumeMounts:
         - mountPath: /dev/shm
           name: dshm

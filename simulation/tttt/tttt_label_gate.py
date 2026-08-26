@@ -7,14 +7,31 @@ BEFORE any GPU time):
   3. physics of the labels: m(b,q1,q2), m(q1,q2), m(b+fj_qq), FB sdmass
   4. composition + per-event labeled-top counts
 """
+import argparse
+
 import numpy as np
 import h5py
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-PATH = "/data/spatop/tttt_pilot/h5/tttt_training.h5"
-NT = 4
+ap = argparse.ArgumentParser(
+    description="Validate the label physics of a converted multi-top h5.",
+    epilog="Example: python tttt_label_gate.py "
+           "-f /data/spatop/tttt_15M/h5/tttt_training.h5 -o /data/spatop/plots/tttt_15M_labels.png")
+ap.add_argument("-f", "--file", default="/data/spatop/tttt_pilot/h5/tttt_training.h5",
+                help="converted h5 to check (default: the tttt pilot)")
+ap.add_argument("-n", "--n-tops", type=int, default=4,
+                help="tops per event: 2 for ttbar, 4 for tttt, 6 for six-top")
+ap.add_argument("-o", "--out", default="/data/spatop/plots_dp_fixed/tttt_pilot_labels.png",
+                help="output figure path")
+ap.add_argument("-l", "--label", default=None,
+                help="name used in the figure title (default: derived from --file)")
+args = ap.parse_args()
+
+PATH = args.file
+NT = args.n_tops
+LABEL = args.label or PATH.split("/")[-3] if PATH.count("/") >= 3 else PATH
 with h5py.File(PATH, "r") as h:
     jm = np.asarray(h["INPUTS/Jets/MASK"]); n, njet = jm.shape
     fjm = np.asarray(h["INPUTS/BoostedJets/MASK"]); nfj = fjm.shape[1]
@@ -107,7 +124,8 @@ print(f"3. PHYSICS: FR m(bqq) top-window {w_in(frm,123,223):.1f}%  "
       f"FR m(q1q2) W-window {w_in(wm,50,110):.1f}%  "
       f"SRqq m(b+fj) top-window {w_in(srm,123,223):.1f}%  "
       f"FB sdmass 120-250 {w_in(fbm,120,250):.1f}%")
-print(f"   [fixed-tt references: 86.8 / 80.8 / 83.9 / 83.7]")
+print(f"   [fixed-ttbar references: 86.8 / 80.8 / 83.9 / 83.7]")
+print(f"   [tttt 15M measured:      94.3 / 100.0 / 83.9 / 85.4]")
 
 fig, ax = plt.subplots(2, 2, figsize=(11, 7.5))
 for a, (x, b, t, l) in zip(ax.ravel(), [
@@ -118,7 +136,8 @@ for a, (x, b, t, l) in zip(ax.ravel(), [
     a.hist(x, bins=b, histtype="step", lw=1.6, color="#1f4e9c")
     a.axvline(l, color="gray", ls=":", lw=1)
     a.set_title(t, fontsize=10)
-fig.suptitle(f"tttt pilot label physics ({n:,} training events, group pipeline, --n-tops 4)")
+fig.suptitle(f"{LABEL} label physics ({n:,} events, group pipeline, --n-tops {NT})")
 fig.tight_layout()
-fig.savefig("/data/spatop/plots_dp_fixed/tttt_pilot_labels.png", dpi=140)
+fig.savefig(args.out, dpi=140)
+print(f"figure: {args.out}")
 print("GATE DONE")

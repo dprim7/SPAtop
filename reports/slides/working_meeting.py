@@ -274,19 +274,25 @@ DECK = {
                 ],
             },
             "equation": [
-                "<i>H<sub>T</sub></i>(<i>N</i>) = <i>N</i>! / [ (<i>N</i>−3<i>T</i>)! · 2<sup><i>T</i></sup> · <i>T</i>! ] "
-                "&nbsp;&nbsp;→&nbsp;&nbsp; <span class='v'>1.9×10<sup>4</sup></span> (t̄t) "
-                "&nbsp;·&nbsp; <span class='v'>2.3×10<sup>9</sup></span> (tttt)",
-                "label symmetry <i>T</i>! = <span class='v'>2</span> (t̄t) "
-                "&nbsp;·&nbsp; <span class='v'>24</span> (tttt) "
-                "&nbsp;·&nbsp; <span class='v'>720</span> (t̄tt̄tt̄t)",
+                "<i>H<sub>T</sub></i>(<i>N</i>) = <i>N</i>! / [ (<i>N</i>−3<i>T</i>)! · 2<sup><i>T</i></sup> · <i>T</i>! ]"
+                "&nbsp;&nbsp;&nbsp; assignments for <i>T</i> tops in <i>N</i> jets",
             ],
+            "minitable": {
+                "label": "Evaluated at N = 3T + 4 jets",
+                "head": ["", "<i>T</i>", "<i>H<sub>T</sub></i>", "label symmetry <i>T</i>!"],
+                "rows": [
+                    {"cells": ["t̄t", "2", "1.9×10<sup>4</sup>", "2"]},
+                    {"cells": ["tttt", "4", "2.3×10<sup>9</sup>", "24"]},
+                    {"cells": ["t̄tt̄tt̄t", "6", "1.0×10<sup>15</sup>", "720"]},
+                ],
+            },
 
             "notes": "This is the money slide. In ttbar the bias is a sample-efficiency device "
                      "that more data replaces and eventually overtakes. In tttt the gap WIDENS "
                      "by 4x going from 10.9k to 1.63M training events: the pair-level physics "
                      "(kT, z, deltaR, m^2) is supplying combinatorial structure the plain "
                      "transformer does not extract even from 1.6 million events.\n\n"
+                     "The three rows are the SAME formula evaluated at different T, not a product: each is a separate process. H depends on N as well as T, so the jet count is stated (N = 3T+4, i.e. four jets beyond the minimum).\n\n"
                      "If challenged on statistics: one run per arm, but a 13-point gap is far "
                      "beyond plausible seed noise. The 1-point ttbar small-data gap is not, and "
                      "I do not lean on it.",

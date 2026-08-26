@@ -96,6 +96,8 @@ Semi-resolved and boosted panels are in backup.
 
 This is the money slide. In ttbar the bias is a sample-efficiency device that more data replaces and eventually overtakes. In tttt the gap WIDENS by 4x going from 10.9k to 1.63M training events: the pair-level physics (kT, z, deltaR, m^2) is supplying combinatorial structure the plain transformer does not extract even from 1.6 million events.
 
+The three rows are the SAME formula evaluated at different T, not a product: each is a separate process. H depends on N as well as T, so the jet count is stated (N = 3T+4, i.e. four jets beyond the minimum).
+
 If challenged on statistics: one run per arm, but a 13-point gap is far beyond plausible seed noise. The 1-point ttbar small-data gap is not, and I do not lean on it.
 
 ## Recommendation: vanilla SPAtop for t̄t, pairwise for multi-top
