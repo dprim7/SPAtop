@@ -243,3 +243,162 @@ summary tables. Two rules:
 - Running more than 2 concurrent A100 agents.
 - Deleting or modifying anything under `/data/spatop/` that you did not create.
 - Anything touching a job whose name does not start with your initials.
+
+---
+
+# Runbook: the exact commands
+
+Replace `<init>` with your initials everywhere. Nothing below touches anyone
+else's jobs or data.
+
+## A. One-time setup
+
+```bash
+git clone https://github.com/dprim7/SPAtop.git && cd SPAtop
+git checkout sweep/tttt-bayes-instructions
+kubectl get pods -n axol1tl          # must return promptly; if it HANGS your token expired
+```
+
+Create your own W&B key as a secret. Use your own key, not anyone else's:
+
+```bash
+kubectl create secret generic <init>-wandb -n axol1tl --from-literal=api-key=<YOUR_WANDB_KEY>
+```
+
+## B. Put the sweep runner on the PVC (easy to miss)
+
+The `program:` line in a sweep yaml is a path **inside the pod**, not in the
+repo. W&B agents execute that file, so it has to exist on the volume before
+`wandb sweep` is of any use.
+
+Start a tiny helper pod that mounts the volume:
+
+```bash
+kubectl apply -f - <<'YAML'
+apiVersion: v1
+kind: Pod
+metadata: {name: <init>-pvc-helper, namespace: axol1tl}
+spec:
+  restartPolicy: Never
+  containers:
+  - name: helper
+    image: busybox
+    command: ["sleep", "7200"]
+    resources:
+      limits:   {cpu: "1", memory: 2Gi}
+      requests: {cpu: "1", memory: 2Gi}
+    volumeMounts: [{mountPath: /data, name: vol}]
+  volumes:
+  - name: vol
+    persistentVolumeClaim: {claimName: traindatavol}
+YAML
+
+kubectl wait --for=condition=Ready pod/<init>-pvc-helper -n axol1tl --timeout=300s
+kubectl exec -n axol1tl <init>-pvc-helper -- mkdir -p /data/spatop/sweep/tttt_<init>
+kubectl cp kube/sweep_tttt_<init>/run_sweep_tttt.py \
+           axol1tl/<init>-pvc-helper:/data/spatop/sweep/tttt_<init>/run_sweep_tttt.py
+kubectl exec -n axol1tl <init>-pvc-helper -- ls -la /data/spatop/sweep/tttt_<init>/
+```
+
+Delete the helper when you are done copying:
+
+```bash
+kubectl delete pod <init>-pvc-helper -n axol1tl
+```
+
+Re-copy the runner every time you edit it. The agents read the PVC copy, not
+your local one, and this is the single most common way to spend an afternoon
+confused.
+
+## C. Adapt the runner
+
+Copy `kube/sweep_fixed_dp/` to `kube/sweep_tttt_<init>/`, rename the runner to
+`run_sweep_tttt.py`, and change these lines in `BASE_CONFIG`:
+
+```python
+"event_info_file": "/data/spatop/event_files/tttt/tttt_hadronic.yaml",
+"training_file":   "/data/spatop/tttt_15M/h5/tttt_training.h5",
+"dataset_limit":   0.2,      # sweep on a subsample, see the cost section
+"epochs":          10,
+```
+
+In both sweep yamls set `program:` to the PVC path from step B and drop in the
+wider search space from the earlier section.
+
+## D. Create the two sweeps
+
+```bash
+wandb login
+wandb sweep kube/sweep_tttt_<init>/sweep_vanilla.yaml
+wandb sweep kube/sweep_tttt_<init>/sweep_pairwise.yaml
+```
+
+Each prints a line like:
+
+```
+wandb: Created sweep with ID: ab12cd34
+wandb: View sweep at: https://wandb.ai/<entity>/<project>/sweeps/ab12cd34
+```
+
+Keep the full `<entity>/<project>/<id>` triple. The agent needs all three.
+
+## E. Launch the agents
+
+Copy `kube/spatop-sweepagents-fixed-axol1tl.yml` to
+`kube/<init>-sweepagents-tttt.yml`. It contains **two Jobs**, one per arm. In
+each, change:
+
+1. `metadata.name` → `<init>-sweepagent-tttt-vanilla` / `-pairwise`
+2. the secret name `dp-wandb` → `<init>-wandb`
+3. the final line `wandb agent --count 10 <entity>/<project>/<sweepid>` → your
+   own triple, `--count 10`
+4. leave the rest alone. In particular the vanilla Job installs
+   `billy000400/SPANet@maad_dev` with `PAIRWISE_BLOCKS=0`, and the pairwise Job
+   installs `dprim7/SPANet@feat/pairwise-attention` with `PAIRWISE_BLOCKS=1`.
+   That difference IS the experiment.
+
+```bash
+kubectl apply -f kube/<init>-sweepagents-tttt.yml
+kubectl get pods -n axol1tl -l job-name=<init>-sweepagent-tttt-vanilla
+```
+
+Each agent pod runs `--count` trials one after another, so two Jobs give you two
+concurrent trials. For 20 trials per arm, either raise `--count` to 20 and wait
+longer, or apply a second copy of each Job with a different name. Do not exceed
+2 concurrent A100 pods per arm without asking.
+
+## F. Watch it
+
+```bash
+kubectl get jobs -n axol1tl | grep <init>
+kubectl logs -n axol1tl -l job-name=<init>-sweepagent-tttt-pairwise --tail=50 -f
+```
+
+The W&B sweep page is the better view: it shows the Bayesian search filling in
+and which trials hyperband killed early.
+
+If a pod stays `Pending`, run `kubectl describe pod <name> -n axol1tl` and read
+the Events. `Insufficient nvidia.com/a100` means the quota is full and you wait.
+Anything mentioning node affinity means the resource type is wrong: it must be
+`nvidia.com/a100`, never `nvidia.com/gpu`.
+
+## G. Validate the winners at full data
+
+Pull the results, take the **top three per arm**, and re-run each with
+`dataset_limit: 1.0` and `epochs: 15`, so the numbers line up with the existing
+A/B (vanilla FR 15.4, pairwise FR 28.4). Model those Jobs on the configs at
+`/data/spatop/tttt_15M/configs/tttt15m_{vanilla,blocks}.json`, which are exactly
+what produced those two numbers.
+
+Expect roughly 10 hours per vanilla run and 15 per pairwise run.
+
+## Sanity checks before you trust any of it
+
+- Both arms trained on the same file, same event file, same epochs, same
+  `dataset_limit`. If they differ in anything but the pairwise switch, the
+  comparison is void.
+- `validation_average_jet_accuracy` is a real number and not NaN.
+- Parameter counts differ between arms in the direction you expect (pairwise
+  adds the bias MLPs).
+- The best trial is not sitting at the edge of a swept range. If it is, the
+  range was too narrow and should be widened and re-run.
