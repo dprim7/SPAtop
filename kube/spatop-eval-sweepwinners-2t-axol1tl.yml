@@ -5,7 +5,7 @@
 # pt-curves) used iflm6fht / wclzbk8u, which are the winners under W&B's
 # LAST-epoch summary ranking. The winners by best-of-history are:
 #
-#   pairwise  gs8pex8v  val_avg_jet_acc 0.4293   (summary ranking put it 7th)
+#   pairwise  gs8pex8v  val_avg_jet_acc 0.4293   (2nd under summary ranking)
 #   vanilla   g2vc1w2g  val_avg_jet_acc 0.4124
 #
 # Both were trained on the fixed dataset and have never been evaluated at all.
