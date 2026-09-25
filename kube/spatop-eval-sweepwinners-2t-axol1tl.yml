@@ -1,0 +1,167 @@
+# Re-evaluation of the TRUE 2t sweep winners, closing the item found in
+# reports/model_selection_audit.md.
+#
+# Every 2t comparison published so far (the 2x2 table, the chi2 comparison, the
+# pt-curves) used iflm6fht / wclzbk8u, which are the winners under W&B's
+# LAST-epoch summary ranking. The winners by best-of-history are:
+#
+#   pairwise  gs8pex8v  val_avg_jet_acc 0.4293   (summary ranking put it 7th)
+#   vanilla   g2vc1w2g  val_avg_jet_acc 0.4124
+#
+# Both were trained on the fixed dataset and have never been evaluated at all.
+# Each is scored on TWO test sets:
+#   fixed test (187k)  -- where every other number in the comparison lives
+#   v6 large test (3.8M, repaired deltaRfj) -- the large 2t dataset
+#
+# Install pins matter here: gs8pex8v was trained in July, before the Aug-3
+# commits that removed the _pw_mean_/_pw_std_ buffers, so its state_dict only
+# loads under @0983c4f. Evaluating it against the branch head fails outright.
+# Outputs use the 'swpwin' tag so they never collide with the old 'swpbest'
+# (mis-picked) predictions.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: dp-eval-swpwin-2t-pairwise
+  namespace: axol1tl
+  labels: {jobgroup: spatop-job-eval}
+spec:
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 172800
+  template:
+    spec:
+      restartPolicy: Never
+      securityContext: {runAsUser: 0, fsGroup: 0}
+      containers:
+      - name: eval
+        image: gitlab-registry.nrp-nautilus.io/mquinnan/top-spanet:spatop-container
+        env:
+        - {name: RUN,  value: gs8pex8v}
+        - {name: ARCH, value: pairwise}
+        - {name: PIN,  value: "git+https://github.com/dprim7/SPANet.git@0983c4f"}
+        command: &ev
+        - /bin/bash
+        - -c
+        - |
+          set -e
+          pip install -q $PIN tensorboard rich 2>&1 | tail -1
+
+          BEST=$(python - <<'PYEOF'
+          import glob, os, re, urllib.parse
+          cks = glob.glob(f"/data/spatop/logs/sweep_fixed_dp/spatop-sweep/{os.environ['RUN']}/checkpoints/*.ckpt")
+          assert cks, f"no checkpoints for {os.environ['RUN']}"
+          best, best_acc = None, -1.0
+          for ck in cks:
+              m = re.search(r"validation_average_jet_accuracy=([0-9]+\.[0-9]+)", urllib.parse.unquote(ck))
+              if m and float(m.group(1)) > best_acc:
+                  best, best_acc = ck, float(m.group(1))
+          assert best, "no checkpoint carried a parsable metric"
+          print(best)
+          PYEOF
+          )
+          BEST=$(echo "$BEST" | tail -1)
+          echo "=== $ARCH winner $RUN -> $BEST"
+
+          mkdir -p /scratch/model /data/spatop/delphes_v6/eval
+          cp /data/spatop/options_files/sweep_fixed_dp/config_$RUN.json /scratch/model/options.json
+
+          # arm 1: fixed test set (comparable with every published number)
+          python -m spanet.predict /scratch/model /scratch/fixedtest.h5 \
+            -ckpt "$BEST" -tf /data/spatop/tpm70_wpm30_FB350_fixed_test/all_merged.h5 -g
+          cp /scratch/fixedtest.h5 \
+            /data/spatop/tpm70_wpm30_FB350_fixed_eval/tt_hadronic_dp_swpwin_${ARCH}_fixedtest.h5
+          echo "DONE-1 fixed test"
+
+          # arm 2: v6 large 2t test set
+          python -m spanet.predict /scratch/model /scratch/v6test.h5 \
+            -ckpt "$BEST" -tf /data/spatop/delphes_v6/tt_hadronic_testing2k_clean.h5 -g
+          cp /scratch/v6test.h5 \
+            /data/spatop/delphes_v6/eval/tt_hadronic_dp_swpwin_${ARCH}_v6test.h5
+          echo "DONE-2 v6 large test"
+        resources:
+          limits:   {cpu: "4", memory: 48Gi, nvidia.com/a100: "1"}
+          requests: {cpu: "4", memory: 48Gi, nvidia.com/a100: "1"}
+        volumeMounts:
+        - {mountPath: /dev/shm, name: dshm}
+        - {mountPath: /data, name: spatopvol}
+        - {mountPath: /scratch, name: scratch}
+      volumes:
+      - name: dshm
+        emptyDir: {medium: Memory, sizeLimit: 4Gi}
+      - name: scratch
+        emptyDir: {sizeLimit: 40Gi}
+      - name: spatopvol
+        persistentVolumeClaim: {claimName: traindatavol}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: dp-eval-swpwin-2t-vanilla
+  namespace: axol1tl
+  labels: {jobgroup: spatop-job-eval}
+spec:
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 172800
+  template:
+    spec:
+      restartPolicy: Never
+      securityContext: {runAsUser: 0, fsGroup: 0}
+      containers:
+      - name: eval
+        image: gitlab-registry.nrp-nautilus.io/mquinnan/top-spanet:spatop-container
+        env:
+        - {name: RUN,  value: g2vc1w2g}
+        - {name: ARCH, value: vanilla}
+        - {name: PIN,  value: "git+https://github.com/billy000400/SPANet@maad_dev"}
+        command:
+        - /bin/bash
+        - -c
+        - |
+          set -e
+          pip install -q $PIN tensorboard rich 2>&1 | tail -1
+
+          BEST=$(python - <<'PYEOF'
+          import glob, os, re, urllib.parse
+          cks = glob.glob(f"/data/spatop/logs/sweep_fixed_dp/spatop-sweep/{os.environ['RUN']}/checkpoints/*.ckpt")
+          assert cks, f"no checkpoints for {os.environ['RUN']}"
+          best, best_acc = None, -1.0
+          for ck in cks:
+              m = re.search(r"validation_average_jet_accuracy=([0-9]+\.[0-9]+)", urllib.parse.unquote(ck))
+              if m and float(m.group(1)) > best_acc:
+                  best, best_acc = ck, float(m.group(1))
+          assert best, "no checkpoint carried a parsable metric"
+          print(best)
+          PYEOF
+          )
+          BEST=$(echo "$BEST" | tail -1)
+          echo "=== $ARCH winner $RUN -> $BEST"
+
+          mkdir -p /scratch/model /data/spatop/delphes_v6/eval
+          cp /data/spatop/options_files/sweep_fixed_dp/config_$RUN.json /scratch/model/options.json
+
+          # arm 1: fixed test set (comparable with every published number)
+          python -m spanet.predict /scratch/model /scratch/fixedtest.h5 \
+            -ckpt "$BEST" -tf /data/spatop/tpm70_wpm30_FB350_fixed_test/all_merged.h5 -g
+          cp /scratch/fixedtest.h5 \
+            /data/spatop/tpm70_wpm30_FB350_fixed_eval/tt_hadronic_dp_swpwin_${ARCH}_fixedtest.h5
+          echo "DONE-1 fixed test"
+
+          # arm 2: v6 large 2t test set
+          python -m spanet.predict /scratch/model /scratch/v6test.h5 \
+            -ckpt "$BEST" -tf /data/spatop/delphes_v6/tt_hadronic_testing2k_clean.h5 -g
+          cp /scratch/v6test.h5 \
+            /data/spatop/delphes_v6/eval/tt_hadronic_dp_swpwin_${ARCH}_v6test.h5
+          echo "DONE-2 v6 large test"
+        resources:
+          limits:   {cpu: "4", memory: 48Gi, nvidia.com/a100: "1"}
+          requests: {cpu: "4", memory: 48Gi, nvidia.com/a100: "1"}
+        volumeMounts:
+        - {mountPath: /dev/shm, name: dshm}
+        - {mountPath: /data, name: spatopvol}
+        - {mountPath: /scratch, name: scratch}
+      volumes:
+      - name: dshm
+        emptyDir: {medium: Memory, sizeLimit: 4Gi}
+      - name: scratch
+        emptyDir: {sizeLimit: 40Gi}
+      - name: spatopvol
+        persistentVolumeClaim: {claimName: traindatavol}
