@@ -1,4 +1,4 @@
-# Sweep agents for the v12 ttbar pairwise sweep (spatop/spatop-v12-sweep).
+# Sweep agents for the v12 ttbar pairwise sweep (escheuller-uc-san-diego/spatop-v12-sweep).
 # Two Jobs = two concurrent trials (A100 quota is 4, shared; ask before more).
 # Edit SWEEP once the sweep exists. Runner + patch must be on the PVC first:
 # see kube/sweep_v12_dp/README.md.
@@ -28,7 +28,7 @@ spec:
         - name: WANDB_API_KEY
           valueFrom: {secretKeyRef: {name: dp-wandb, key: api-key}}
         - name: SWEEP
-          value: "spatop/spatop-v12-sweep/REPLACE_SWEEP_ID"
+          value: "escheuller-uc-san-diego/spatop-v12-sweep/REPLACE_SWEEP_ID"
         - name: TRIALS
           value: "10"
         command:
@@ -123,7 +123,7 @@ spec:
         - name: WANDB_API_KEY
           valueFrom: {secretKeyRef: {name: dp-wandb, key: api-key}}
         - name: SWEEP
-          value: "spatop/spatop-v12-sweep/REPLACE_SWEEP_ID"
+          value: "escheuller-uc-san-diego/spatop-v12-sweep/REPLACE_SWEEP_ID"
         - name: TRIALS
           value: "10"
         command:

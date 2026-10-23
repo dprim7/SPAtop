@@ -1,5 +1,5 @@
 program: /data/spatop/sweep/v12_dp/run_sweep_v12_dp.py
-entity: spatop
+entity: escheuller-uc-san-diego
 project: spatop-v12-sweep
 name: dp_v12_pairwise
 method: bayes
