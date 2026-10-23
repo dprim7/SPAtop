@@ -1,0 +1,192 @@
+# Sweep agents for the v12 ttbar pairwise sweep (spatop/spatop-v12-sweep).
+# Two Jobs = two concurrent trials (A100 quota is 4, shared; ask before more).
+# Edit SWEEP once the sweep exists. Runner + patch must be on the PVC first:
+# see kube/sweep_v12_dp/README.md.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: dp-sweepagent-v12-pairwise-1
+  namespace: axol1tl
+  labels:
+    jobgroup: spatop-sweep-agent
+spec:
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 172800
+  template:
+    metadata:
+      labels:
+        job-name: dp-sweepagent-v12-pairwise-1
+    spec:
+      restartPolicy: Never
+      securityContext:
+        runAsUser: 0
+        fsGroup: 0
+      containers:
+      - name: agent
+        image: gitlab-registry.nrp-nautilus.io/mquinnan/top-spanet:spatop-container
+        env:
+        - name: WANDB_API_KEY
+          valueFrom: {secretKeyRef: {name: dp-wandb, key: api-key}}
+        - name: SWEEP
+          value: "spatop/spatop-v12-sweep/REPLACE_SWEEP_ID"
+        - name: TRIALS
+          value: "10"
+        command:
+        - /bin/bash
+        - -c
+        - |
+          set -e
+          echo "Installing SPANet (tcoulvert master) + wandb..."
+          pip install git+https://github.com/tcoulvert/SPANet@master
+          pip install tensorboard rich wandb
+
+          echo "Applying the eff_at_purity checkpoint patch..."
+          SITE=$(python -c 'import os, spanet; print(os.path.dirname(os.path.dirname(spanet.__file__)))')
+          (cd $SITE && git apply -p1 --verbose --exclude='tests/*' /data/spatop/sweep/v12_dp/spanet_eff_at_purity.patch)
+
+          echo "Patching SPANet logger for W&B..."
+          python - <<'PYEOF'
+          import os, re, spanet
+          f = os.path.join(os.path.dirname(spanet.__file__), "train.py")
+          src = open(f).read()
+          old = "    logger = TensorBoardLogger(save_dir=log_dir, name=name)"
+          new = (
+              "    if __import__('os').environ.get('WANDB_API_KEY'):\n"
+              "        from pytorch_lightning.loggers import WandbLogger\n"
+              "        logger = WandbLogger(project=__import__('os').environ.get('WANDB_PROJECT', 'spatop'),\n"
+              "                             name=name, save_dir=log_dir)\n"
+              "    else:\n"
+              "        logger = TensorBoardLogger(save_dir=log_dir, name=name)"
+          )
+          assert old in src, "logger line not found"
+          src = src.replace(old, new)
+          src, _ = re.subn(r"trainer\.logger\.log_dir", "(trainer.logger.log_dir or log_dir)", src)
+          open(f, "w").write(src)
+          print("logger patched")
+          PYEOF
+
+          mkdir -p /scratch/logs /data/spatop/logs/sweep_v12_dp
+          ( while true; do
+              sleep 300
+              rsync -a /scratch/logs/ /data/spatop/logs/sweep_v12_dp/ 2>/dev/null \
+                || cp -ru /scratch/logs/* /data/spatop/logs/sweep_v12_dp/ 2>/dev/null || true
+            done ) &
+          SYNC_PID=$!
+
+          echo "Starting sweep agent: $SWEEP (max $TRIALS trials)"
+          wandb agent --count $TRIALS $SWEEP
+
+          echo "Agent done -- final sync..."
+          kill $SYNC_PID 2>/dev/null || true
+          rsync -a /scratch/logs/ /data/spatop/logs/sweep_v12_dp/ 2>/dev/null \
+            || cp -ru /scratch/logs/* /data/spatop/logs/sweep_v12_dp/ || true
+          echo "DONE"
+        resources:
+          limits:   {cpu: "4", memory: 24Gi, nvidia.com/a100: "1"}
+          requests: {cpu: "4", memory: 24Gi, nvidia.com/a100: "1"}
+        volumeMounts:
+        - {mountPath: /dev/shm, name: dshm}
+        - {mountPath: /data, name: spatopvol}
+        - {mountPath: /scratch, name: scratch}
+      volumes:
+      - name: dshm
+        emptyDir: {medium: Memory, sizeLimit: 8Gi}
+      - name: scratch
+        emptyDir: {sizeLimit: 150Gi}
+      - name: spatopvol
+        persistentVolumeClaim: {claimName: traindatavol}
+
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: dp-sweepagent-v12-pairwise-2
+  namespace: axol1tl
+  labels:
+    jobgroup: spatop-sweep-agent
+spec:
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 172800
+  template:
+    metadata:
+      labels:
+        job-name: dp-sweepagent-v12-pairwise-2
+    spec:
+      restartPolicy: Never
+      securityContext:
+        runAsUser: 0
+        fsGroup: 0
+      containers:
+      - name: agent
+        image: gitlab-registry.nrp-nautilus.io/mquinnan/top-spanet:spatop-container
+        env:
+        - name: WANDB_API_KEY
+          valueFrom: {secretKeyRef: {name: dp-wandb, key: api-key}}
+        - name: SWEEP
+          value: "spatop/spatop-v12-sweep/REPLACE_SWEEP_ID"
+        - name: TRIALS
+          value: "10"
+        command:
+        - /bin/bash
+        - -c
+        - |
+          set -e
+          echo "Installing SPANet (tcoulvert master) + wandb..."
+          pip install git+https://github.com/tcoulvert/SPANet@master
+          pip install tensorboard rich wandb
+
+          echo "Applying the eff_at_purity checkpoint patch..."
+          SITE=$(python -c 'import os, spanet; print(os.path.dirname(os.path.dirname(spanet.__file__)))')
+          (cd $SITE && git apply -p1 --verbose --exclude='tests/*' /data/spatop/sweep/v12_dp/spanet_eff_at_purity.patch)
+
+          echo "Patching SPANet logger for W&B..."
+          python - <<'PYEOF'
+          import os, re, spanet
+          f = os.path.join(os.path.dirname(spanet.__file__), "train.py")
+          src = open(f).read()
+          old = "    logger = TensorBoardLogger(save_dir=log_dir, name=name)"
+          new = (
+              "    if __import__('os').environ.get('WANDB_API_KEY'):\n"
+              "        from pytorch_lightning.loggers import WandbLogger\n"
+              "        logger = WandbLogger(project=__import__('os').environ.get('WANDB_PROJECT', 'spatop'),\n"
+              "                             name=name, save_dir=log_dir)\n"
+              "    else:\n"
+              "        logger = TensorBoardLogger(save_dir=log_dir, name=name)"
+          )
+          assert old in src, "logger line not found"
+          src = src.replace(old, new)
+          src, _ = re.subn(r"trainer\.logger\.log_dir", "(trainer.logger.log_dir or log_dir)", src)
+          open(f, "w").write(src)
+          print("logger patched")
+          PYEOF
+
+          mkdir -p /scratch/logs /data/spatop/logs/sweep_v12_dp
+          ( while true; do
+              sleep 300
+              rsync -a /scratch/logs/ /data/spatop/logs/sweep_v12_dp/ 2>/dev/null \
+                || cp -ru /scratch/logs/* /data/spatop/logs/sweep_v12_dp/ 2>/dev/null || true
+            done ) &
+          SYNC_PID=$!
+
+          echo "Starting sweep agent: $SWEEP (max $TRIALS trials)"
+          wandb agent --count $TRIALS $SWEEP
+
+          echo "Agent done -- final sync..."
+          kill $SYNC_PID 2>/dev/null || true
+          rsync -a /scratch/logs/ /data/spatop/logs/sweep_v12_dp/ 2>/dev/null \
+            || cp -ru /scratch/logs/* /data/spatop/logs/sweep_v12_dp/ || true
+          echo "DONE"
+        resources:
+          limits:   {cpu: "4", memory: 24Gi, nvidia.com/a100: "1"}
+          requests: {cpu: "4", memory: 24Gi, nvidia.com/a100: "1"}
+        volumeMounts:
+        - {mountPath: /dev/shm, name: dshm}
+        - {mountPath: /data, name: spatopvol}
+        - {mountPath: /scratch, name: scratch}
+      volumes:
+      - name: dshm
+        emptyDir: {medium: Memory, sizeLimit: 8Gi}
+      - name: scratch
+        emptyDir: {sizeLimit: 150Gi}
+      - name: spatopvol
+        persistentVolumeClaim: {claimName: traindatavol}
