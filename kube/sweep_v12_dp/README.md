@@ -64,10 +64,14 @@ kubectl get pods -n axol1tl -l jobgroup=spatop-sweep-agent
 kubectl logs -n axol1tl -l job-name=dp-sweepagent-v12-pairwise-1 --tail=50 -f
 ```
 
-Each trial leaves four checkpoints under
-`/data/spatop/logs/sweep_v12_dp/dpv12_pairwise_<id>/version_0/checkpoints/`:
-top-3 `validation_average_jet_accuracy`, `last.ckpt`, and the best
-`validation_eff_at_purity` epoch (filename carries the value).
+Checkpoints land under
+`/data/spatop/logs/sweep_v12_dp/spatop-v12-sweep/<wandb_run_id>/checkpoints/`
+(the W&B logger names the directory after the project and run id). Lightning
+keeps top-3 `validation_average_jet_accuracy`, `last.ckpt`, and the best
+`validation_eff_at_purity` epoch on the node; the 5-minute `rsync -a` to the
+PVC has no `--delete`, so superseded checkpoints accumulate there too. Pick
+the highest value in the filename for each monitor, or add `--delete` to the
+rsync in the agent Job to mirror the node exactly.
 
 ## Metric definition (`validation_eff_at_purity`)
 
