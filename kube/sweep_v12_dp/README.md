@@ -1,6 +1,6 @@
 # v12 ttbar pairwise sweep (dp)
 
-W&B team `escheuller-uc-san-diego`, project `spatop-v12-sweep`. Pairwise arm only, Tommy's
+W&B team `spatop`, project `spatop-v12-sweep`. Pairwise arm only, Tommy's
 SPANet master plus the efficiency-at-purity checkpoint patch. Train on
 `ttbar_hadronic_train_v12` (20% subsample for the sweep), validate on the
 separate `ttbar_hadronic_val_v12` file.
